@@ -34,8 +34,8 @@ function drawSourceToCanvas(source: Exclude<MagicEyeImageSource, string>, width?
     return source;
   }
 
-  const naturalWidth = width ?? (isImageBitmapLike(source) || isImageDataLike(source) ? source.width : source.videoWidth || source.naturalWidth);
-  const naturalHeight = height ?? (isImageBitmapLike(source) || isImageDataLike(source) ? source.height : source.videoHeight || source.naturalHeight);
+  const naturalWidth = width ?? (isImageBitmapLike(source) || isImageDataLike(source) ? source.width : isVideoLike(source) ? source.videoWidth : source.naturalWidth);
+  const naturalHeight = height ?? (isImageBitmapLike(source) || isImageDataLike(source) ? source.height : isVideoLike(source) ? source.videoHeight : source.naturalHeight);
   const canvas = createCanvas(Math.max(1, naturalWidth || 1), Math.max(1, naturalHeight || 1));
   const context = canvas.getContext("2d");
   if (!context) {
