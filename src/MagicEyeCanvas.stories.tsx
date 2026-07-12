@@ -232,3 +232,121 @@ export const Default: Story = {
     );
   },
 };
+
+interface Preset {
+  label: string;
+  description: string;
+  pattern: string;
+  depth: string;
+  width: number;
+  height: number;
+  eyeSeparation?: number;
+  depthStrength?: number;
+  blurRadius?: number;
+  invertDepth?: boolean;
+  patternRepeatWidth?: number;
+}
+
+const presets: Preset[] = [
+  {
+    label: "Easy Focus",
+    description: "High depth strength, clear separation, smooth blur. Good for first-time viewers.",
+    pattern: "Blue dot tile",
+    depth: "Raised circle depth",
+    width: 300, height: 300,
+    eyeSeparation: 120, depthStrength: 1.2, blurRadius: 3,
+  },
+  {
+    label: "Smooth Depth",
+    description: "Heavy blur creates gradual, gentle depth transitions.",
+    pattern: "Grid pattern",
+    depth: "Wavy depth",
+    width: 300, height: 300,
+    eyeSeparation: 96, depthStrength: 0.8, blurRadius: 10,
+  },
+  {
+    label: "Deep Cut",
+    description: "Inverted depth with high separation. Indented shapes pop out aggressively.",
+    pattern: "Checkerboard pattern",
+    depth: "Bullseye depth",
+    width: 300, height: 300,
+    eyeSeparation: 160, depthStrength: 1.5, blurRadius: 1, invertDepth: true,
+  },
+  {
+    label: "Subtle Illusion",
+    description: "Low depth strength with wide pattern repeat. A gentle 3D effect.",
+    pattern: "Blue dot tile",
+    depth: "Raised circle depth",
+    width: 300, height: 300,
+    eyeSeparation: 80, depthStrength: 0.3, blurRadius: 4, patternRepeatWidth: 80,
+  },
+  {
+    label: "Hard Mode",
+    description: "Sharp depth map, weak separation, small pattern. Takes patience to see.",
+    pattern: "Checkerboard pattern",
+    depth: "Raised circle depth",
+    width: 300, height: 300,
+    eyeSeparation: 40, depthStrength: 0.5, blurRadius: 0,
+  },
+  {
+    label: "Wide Angle",
+    description: "Large eye separation and strong depth. The illusion jumps out fast.",
+    pattern: "Grid pattern",
+    depth: "Bullseye depth",
+    width: 300, height: 300,
+    eyeSeparation: 200, depthStrength: 1.8, blurRadius: 2,
+  },
+];
+
+export const Gallery: Story = {
+  name: "Preset Gallery",
+  parameters: { controls: { hideNoControlsWarning: true } },
+  argTypes: {
+    pattern: { table: { disable: true } },
+    depth: { table: { disable: true } },
+    width: { table: { disable: true } },
+    height: { table: { disable: true } },
+    eyeSeparation: { table: { disable: true } },
+    depthStrength: { table: { disable: true } },
+    blurRadius: { table: { disable: true } },
+    invertDepth: { table: { disable: true } },
+    patternRepeatWidth: { table: { disable: true } },
+    pipeline: { table: { disable: true } },
+    onRendered: { table: { disable: true } },
+  },
+  render: () => (
+    <div style={{ display: "grid", gap: 32, fontFamily: "system-ui, sans-serif", maxWidth: 1000 }}>
+      <h2 style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>Preset Gallery</h2>
+      <p style={{ margin: 0, color: "#59636e", fontSize: 14 }}>
+        Pre-configured combinations to show what the engine can do.
+      </p>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 24 }}>
+        {presets.map((p) => (
+          <div key={p.label} style={{
+            display: "grid",
+            gap: 8,
+            border: "1px solid #d0d7de",
+            borderRadius: 8,
+            padding: 16,
+            background: "#fff",
+          }}>
+            <div style={{ fontWeight: 600, fontSize: 15 }}>{p.label}</div>
+            <div style={{ fontSize: 13, color: "#59636e", maxWidth: 300 }}>{p.description}</div>
+            <MagicEyeCanvas
+              pattern={imagePresets[p.pattern]}
+              depth={imagePresets[p.depth]}
+              width={p.width}
+              height={p.height}
+              eyeSeparation={p.eyeSeparation}
+              depthStrength={p.depthStrength}
+              blurRadius={p.blurRadius}
+              invertDepth={p.invertDepth}
+              patternRepeatWidth={p.patternRepeatWidth}
+              style={{ border: "1px solid #e1e4e8", borderRadius: 4 }}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  ),
+};
