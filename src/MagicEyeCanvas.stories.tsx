@@ -94,6 +94,10 @@ const meta: Meta<StoryArgs> = {
     depthStrength: 0.75,
     blurRadius: 2,
     invertDepth: false,
+    algorithm: "phase",
+    subpixel: false,
+    occlude: true,
+    occlusionMode: "range-overlap",
   },
   argTypes: {
     pattern: {
@@ -130,6 +134,24 @@ const meta: Meta<StoryArgs> = {
       control: { type: "range", min: 1, max: 200, step: 1 },
       description: "Override the pattern tile width. Wider = pattern repeats less often.",
     },
+    algorithm: {
+      control: "select",
+      options: ["phase", "classic", "thimbleby"],
+      description: "Rendering algorithm. Phase = pattern offset, Classic = left-to-right copy, Thimbleby = occlusion-aware.",
+    },
+    subpixel: {
+      control: "boolean",
+      description: "Bilinear interpolation for sub-pixel shifts. Sharper at depth edges.",
+    },
+    occlude: {
+      control: "boolean",
+      description: "Enable occlusion detection (Thimbleby only). Hides background pixels behind foreground.",
+    },
+    occlusionMode: {
+      control: "select",
+      options: ["range-overlap", "shortest-link"],
+      description: "Occlusion resolution strategy (Thimbleby only).",
+    },
     pipeline: {
       table: { disable: true },
     },
@@ -162,7 +184,11 @@ export const Default: Story = {
       blurRadius: args.blurRadius,
       invertDepth: args.invertDepth,
       patternRepeatWidth: args.patternRepeatWidth,
-    }), [args.eyeSeparation, args.depthStrength, args.blurRadius, args.invertDepth, args.patternRepeatWidth]);
+      subpixel: args.subpixel,
+      algorithm: args.algorithm,
+      occlude: args.occlude,
+      occlusionMode: args.occlusionMode,
+    }), [args.eyeSeparation, args.depthStrength, args.blurRadius, args.invertDepth, args.patternRepeatWidth, args.subpixel, args.algorithm, args.occlude, args.occlusionMode]);
 
     const handleRendered = useCallback((canvas: HTMLCanvasElement) => {
       setRenderedCanvas(canvas);
@@ -245,6 +271,10 @@ interface Preset {
   blurRadius?: number;
   invertDepth?: boolean;
   patternRepeatWidth?: number;
+  subpixel?: boolean;
+  algorithm?: "phase" | "classic" | "thimbleby";
+  occlude?: boolean;
+  occlusionMode?: "range-overlap" | "shortest-link";
 }
 
 const presets: Preset[] = [
@@ -296,6 +326,23 @@ const presets: Preset[] = [
     width: 300, height: 300,
     eyeSeparation: 200, depthStrength: 1.8, blurRadius: 2,
   },
+  {
+    label: "Cross-Eyed",
+    description: "Inverted depth for cross-eyed viewing. Pop-outs become indents.",
+    pattern: "Blue dot tile",
+    depth: "Raised circle depth",
+    width: 300, height: 300,
+    eyeSeparation: 96, depthStrength: 0.75, blurRadius: 2, invertDepth: true,
+  },
+  {
+    label: "Thimbleby Occlusion",
+    description: "Occlusion-aware rendering with classic algorithm. Handles overlapping depth layers.",
+    pattern: "Blue dot tile",
+    depth: "Bullseye depth",
+    width: 300, height: 300,
+    eyeSeparation: 96, depthStrength: 0.75, blurRadius: 2,
+    algorithm: "thimbleby" as const, subpixel: true,
+  },
 ];
 
 export const Gallery: Story = {
@@ -311,6 +358,10 @@ export const Gallery: Story = {
     blurRadius: { table: { disable: true } },
     invertDepth: { table: { disable: true } },
     patternRepeatWidth: { table: { disable: true } },
+    algorithm: { table: { disable: true } },
+    subpixel: { table: { disable: true } },
+    occlude: { table: { disable: true } },
+    occlusionMode: { table: { disable: true } },
     pipeline: { table: { disable: true } },
     onRendered: { table: { disable: true } },
   },
@@ -342,6 +393,10 @@ export const Gallery: Story = {
               blurRadius={p.blurRadius}
               invertDepth={p.invertDepth}
               patternRepeatWidth={p.patternRepeatWidth}
+              subpixel={p.subpixel}
+              algorithm={p.algorithm}
+              occlude={p.occlude}
+              occlusionMode={p.occlusionMode}
               style={{ border: "1px solid #e1e4e8", borderRadius: 4 }}
             />
           </div>

@@ -32,7 +32,26 @@ export interface TiledAutostereogramOptions {
   eyeSeparation?: number;
   depthStrength?: number;
   patternRepeatWidth?: number;
+  subpixel?: boolean;
 }
+
+export interface ClassicStereogramOptions {
+  eyeSeparation?: number;
+  depthStrength?: number;
+  patternRepeatWidth?: number;
+  subpixel?: boolean;
+}
+
+export interface ThimblebyStereogramOptions {
+  eyeSeparation?: number;
+  depthStrength?: number;
+  patternRepeatWidth?: number;
+  subpixel?: boolean;
+  occlude?: boolean;
+  occlusionMode?: "range-overlap" | "shortest-link";
+}
+
+export type StereogramAlgorithm = "phase" | "classic" | "thimbleby";
 
 export interface MagicEyeCanvasProps
   extends Omit<React.CanvasHTMLAttributes<HTMLCanvasElement>, "width" | "height"> {
@@ -47,4 +66,8 @@ export interface MagicEyeCanvasProps
   blurRadius?: number;
   invertDepth?: boolean;
   patternRepeatWidth?: number;
+  subpixel?: boolean;
+  algorithm?: StereogramAlgorithm;
+  occlude?: boolean;
+  occlusionMode?: "range-overlap" | "shortest-link";
 }

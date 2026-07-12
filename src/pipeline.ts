@@ -1,7 +1,9 @@
 import type {
   BlurDepthOptions,
+  ClassicStereogramOptions,
   MagicEyePipelineContext,
   MagicEyeStage,
+  ThimblebyStereogramOptions,
   TiledAutostereogramOptions,
 } from "./types";
 
@@ -85,6 +87,59 @@ function ensureWorkingDepth(context: MagicEyePipelineContext): Float32Array {
   return context.workingDepth;
 }
 
+function sampleBilinear(
+  pixels: Uint8ClampedArray,
+  width: number,
+  height: number,
+  fx: number,
+  fy: number,
+): [number, number, number, number] {
+  const x0 = Math.max(0, Math.min(width - 1, Math.floor(fx)));
+  const x1 = Math.min(width - 1, x0 + 1);
+  const y0 = Math.max(0, Math.min(height - 1, Math.floor(fy)));
+  const y1 = Math.min(height - 1, y0 + 1);
+  const wx = fx - x0;
+  const wy = fy - y0;
+
+  const i00 = (y0 * width + x0) * 4;
+  const i01 = (y0 * width + x1) * 4;
+  const i10 = (y1 * width + x0) * 4;
+  const i11 = (y1 * width + x1) * 4;
+
+  const out: [number, number, number, number] = [0, 0, 0, 0];
+  for (let c = 0; c < 4; c++) {
+    const a = pixels[i00 + c] * (1 - wx) + pixels[i01 + c] * wx;
+    const b = pixels[i10 + c] * (1 - wx) + pixels[i11 + c] * wx;
+    out[c] = Math.round(a * (1 - wy) + b * wy);
+  }
+  return out;
+}
+
+function writePixel(
+  output: Uint8ClampedArray,
+  targetIndex: number,
+  pixel: [number, number, number, number],
+): void {
+  output[targetIndex] = pixel[0];
+  output[targetIndex + 1] = pixel[1];
+  output[targetIndex + 2] = pixel[2];
+  output[targetIndex + 3] = pixel[3];
+}
+
+function getOutputPixel(
+  output: Uint8ClampedArray,
+  width: number,
+  y: number,
+  x: number,
+): [number, number, number, number] {
+  const i = (y * width + x) * 4;
+  return [output[i], output[i + 1], output[i + 2], output[i + 3]];
+}
+
+function computeShift(depthValue: number, eyeSeparation: number, depthStrength: number): number {
+  return (1 - clamp01(depthValue)) * eyeSeparation * depthStrength;
+}
+
 export function normalizeDepth(): MagicEyeStage {
   return {
     name: "normalizeDepth",
@@ -160,6 +215,7 @@ export function tiledAutostereogram(
   const eyeSeparation = Math.max(1, options.eyeSeparation ?? 96);
   const depthStrength = Math.max(0, options.depthStrength ?? 0.75);
   const patternRepeatWidth = options.patternRepeatWidth != null ? Math.max(1, options.patternRepeatWidth) : null;
+  const subpixel = options.subpixel ?? false;
 
   return {
     name: "tiledAutostereogram",
@@ -172,19 +228,201 @@ export function tiledAutostereogram(
       const patternPixels = patternData.data;
       const outputPixels = output.data;
 
-      for (let y = 0; y < height; y += 1) {
-        const patternY = y % patternHeight;
-        for (let x = 0; x < width; x += 1) {
-          const depthValue = clamp01(workingDepth[y * width + x] ?? 0.5);
-          const phaseShift = Math.round((1 - depthValue) * eyeSeparation * depthStrength);
-          const patternX = (x + phaseShift) % patternWidth;
-          const sourceIndex = (patternY * patternWidth + patternX) * 4;
-          const targetIndex = (y * width + x) * 4;
+      if (subpixel) {
+        for (let y = 0; y < height; y += 1) {
+          const patternY = y % patternHeight;
+          for (let x = 0; x < width; x += 1) {
+            const depthValue = clamp01(workingDepth[y * width + x] ?? 0.5);
+            const shift = computeShift(depthValue, eyeSeparation, depthStrength);
+            const patternX = (x + shift) % patternWidth;
+            const pixel = sampleBilinear(patternPixels, patternWidth, patternHeight, patternX, patternY);
+            writePixel(outputPixels, (y * width + x) * 4, pixel);
+          }
+        }
+      } else {
+        for (let y = 0; y < height; y += 1) {
+          const patternY = y % patternHeight;
+          for (let x = 0; x < width; x += 1) {
+            const depthValue = clamp01(workingDepth[y * width + x] ?? 0.5);
+            const phaseShift = Math.round((1 - depthValue) * eyeSeparation * depthStrength);
+            const patternX = (x + phaseShift) % patternWidth;
+            const sourceIndex = (patternY * patternWidth + patternX) * 4;
+            const targetIndex = (y * width + x) * 4;
 
-          outputPixels[targetIndex] = patternPixels[sourceIndex];
-          outputPixels[targetIndex + 1] = patternPixels[sourceIndex + 1];
-          outputPixels[targetIndex + 2] = patternPixels[sourceIndex + 2];
-          outputPixels[targetIndex + 3] = patternPixels[sourceIndex + 3];
+            outputPixels[targetIndex] = patternPixels[sourceIndex];
+            outputPixels[targetIndex + 1] = patternPixels[sourceIndex + 1];
+            outputPixels[targetIndex + 2] = patternPixels[sourceIndex + 2];
+            outputPixels[targetIndex + 3] = patternPixels[sourceIndex + 3];
+          }
+        }
+      }
+
+      const outputCtx = outputCanvas.getContext("2d");
+      if (outputCtx) {
+        outputCtx.putImageData(output, 0, 0);
+      }
+    },
+  };
+}
+
+export function classicStereogram(
+  options: ClassicStereogramOptions = {},
+): MagicEyeStage {
+  const eyeSeparation = Math.max(1, options.eyeSeparation ?? 96);
+  const depthStrength = Math.max(0, options.depthStrength ?? 0.75);
+  const patternRepeatWidth = options.patternRepeatWidth != null ? Math.max(1, options.patternRepeatWidth) : null;
+  const subpixel = options.subpixel ?? false;
+
+  return {
+    name: "classicStereogram",
+    run(context) {
+      const { width, height, patternData, outputCanvas } = context;
+      const workingDepth = ensureWorkingDepth(context);
+      const output = context.outputImageData;
+      const patternWidth = patternRepeatWidth ?? Math.max(1, patternData.width);
+      const patternHeight = Math.max(1, patternData.height);
+      const patternPixels = patternData.data;
+      const outputPixels = output.data;
+
+      for (let y = 0; y < height; y += 1) {
+        const rowStart = y * width;
+
+        for (let x = 0; x < width; x += 1) {
+          const patternX = x % patternWidth;
+          const patternY = y % patternHeight;
+          const si = (patternY * patternWidth + patternX) * 4;
+          const di = (rowStart + x) * 4;
+          outputPixels[di] = patternPixels[si];
+          outputPixels[di + 1] = patternPixels[si + 1];
+          outputPixels[di + 2] = patternPixels[si + 2];
+          outputPixels[di + 3] = patternPixels[si + 3];
+        }
+
+        for (let x = patternWidth; x < width; x += 1) {
+          const depthValue = clamp01(workingDepth[rowStart + x] ?? 0.5);
+          const shift = computeShift(depthValue, eyeSeparation, depthStrength);
+          const srcX = x - shift;
+
+          if (subpixel) {
+            const fx = Math.max(0, Math.min(width - 1, srcX));
+            const pixel = sampleBilinear(outputPixels, width, 1, fx, 0);
+            writePixel(outputPixels, (rowStart + x) * 4, pixel);
+          } else {
+            const sx = Math.max(0, Math.min(width - 1, Math.round(srcX)));
+            const si = (rowStart + sx) * 4;
+            const di = (rowStart + x) * 4;
+            outputPixels[di] = outputPixels[si];
+            outputPixels[di + 1] = outputPixels[si + 1];
+            outputPixels[di + 2] = outputPixels[si + 2];
+            outputPixels[di + 3] = outputPixels[si + 3];
+          }
+        }
+      }
+
+      const outputCtx = outputCanvas.getContext("2d");
+      if (outputCtx) {
+        outputCtx.putImageData(output, 0, 0);
+      }
+    },
+  };
+}
+
+function isOccludedByRightward(
+  shifts: Int32Array,
+  patternW: number,
+  target: number,
+  x: number,
+): boolean {
+  const d = shifts[x];
+  for (let k = Math.max(patternW, target + 1); k < x; k++) {
+    const dk = shifts[k];
+    if (dk > d && k - dk < target) return true;
+  }
+  return false;
+}
+
+export function thimblebyStereogram(
+  options: ThimblebyStereogramOptions = {},
+): MagicEyeStage {
+  const eyeSeparation = Math.max(1, options.eyeSeparation ?? 96);
+  const depthStrength = Math.max(0, options.depthStrength ?? 0.75);
+  const patternRepeatWidth = options.patternRepeatWidth != null ? Math.max(1, options.patternRepeatWidth) : null;
+  const subpixel = options.subpixel ?? false;
+  const occlude = options.occlude ?? true;
+  const occlusionMode = options.occlusionMode ?? "range-overlap";
+
+  return {
+    name: "thimblebyStereogram",
+    run(context) {
+      const { width, height, patternData, outputCanvas } = context;
+      const workingDepth = ensureWorkingDepth(context);
+      const output = context.outputImageData;
+      const patternWidth = patternRepeatWidth ?? Math.max(1, patternData.width);
+      const patternHeight = Math.max(1, patternData.height);
+      const patternPixels = patternData.data;
+      const outputPixels = output.data;
+
+      for (let y = 0; y < height; y += 1) {
+        const rowStart = y * width;
+        const shifts = new Int32Array(width);
+        const offset = new Int32Array(width);
+
+        for (let x = 0; x < width; x++) {
+          offset[x] = x;
+          const depthValue = clamp01(workingDepth[rowStart + x] ?? 0.5);
+          shifts[x] = Math.round(computeShift(depthValue, eyeSeparation, depthStrength));
+        }
+
+        if (occlusionMode === "shortest-link") {
+          for (let x = patternWidth; x < width; x++) {
+            const d = shifts[x];
+            const left = Math.max(0, x - d);
+            if (left !== x) {
+              if (occlude && isOccludedByRightward(shifts, patternWidth, left, x)) {
+                offset[x] = x;
+              } else {
+                offset[x] = offset[left];
+              }
+            }
+          }
+        } else {
+          for (let x = patternWidth; x < width; x++) {
+            const d = shifts[x];
+            const left = Math.max(0, x - d);
+            if (left !== x) offset[x] = offset[left];
+          }
+        }
+
+        if (occlude && occlusionMode === "range-overlap" && patternWidth < width) {
+          for (let x = width - 1; x >= patternWidth; x--) {
+            const o = offset[x];
+            if (o === x || o < 0) continue;
+            if (isOccludedByRightward(shifts, patternWidth, o, x)) {
+              offset[x] = x;
+            }
+          }
+        }
+
+        for (let x = 0; x < width; x++) {
+          const patternX = x % patternWidth;
+          const patternY = y % patternHeight;
+          const si = (patternY * patternWidth + patternX) * 4;
+          const di = (rowStart + x) * 4;
+          outputPixels[di] = patternPixels[si];
+          outputPixels[di + 1] = patternPixels[si + 1];
+          outputPixels[di + 2] = patternPixels[si + 2];
+          outputPixels[di + 3] = patternPixels[si + 3];
+        }
+
+        for (let x = patternWidth; x < width; x++) {
+          const srcIdx = offset[x];
+          if (srcIdx === x) continue;
+          const si = (rowStart + srcIdx) * 4;
+          const di = (rowStart + x) * 4;
+          outputPixels[di] = outputPixels[si];
+          outputPixels[di + 1] = outputPixels[si + 1];
+          outputPixels[di + 2] = outputPixels[si + 2];
+          outputPixels[di + 3] = outputPixels[si + 3];
         }
       }
 

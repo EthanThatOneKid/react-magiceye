@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useMemo, useRef } from "react";
-import { blurDepth, createDefaultPipeline, invertDepth, normalizeDepth, tiledAutostereogram } from "./pipeline";
+import { blurDepth, classicStereogram, createDefaultPipeline, invertDepth, normalizeDepth, thimblebyStereogram, tiledAutostereogram } from "./pipeline";
 import type { MagicEyeCanvasProps, MagicEyeImageSource, MagicEyePipelineContext, MagicEyeStage } from "./types";
 
 function isCanvasLike(source: MagicEyeImageSource): source is HTMLCanvasElement {
@@ -122,36 +122,50 @@ function buildPipeline({
   blurRadius,
   invertDepth: invert,
   patternRepeatWidth,
+  subpixel,
+  algorithm,
+  occlude,
+  occlusionMode,
 }: MagicEyeCanvasProps): MagicEyeStage[] {
   if (pipeline) {
     return pipeline;
   }
 
-  const hasCreatorControls = eyeSeparation != null || depthStrength != null || blurRadius != null || invert != null || patternRepeatWidth != null;
+  const hasCreatorControls = eyeSeparation != null || depthStrength != null || blurRadius != null || invert != null || patternRepeatWidth != null || subpixel != null || algorithm != null || occlude != null || occlusionMode != null;
   if (!hasCreatorControls) {
     return createDefaultPipeline();
   }
+
+  const algo = algorithm ?? "phase";
+  const sharedOpts = {
+    eyeSeparation: eyeSeparation ?? 96,
+    depthStrength: depthStrength ?? 0.75,
+    patternRepeatWidth: patternRepeatWidth ?? undefined,
+    subpixel: subpixel ?? false,
+  };
+
+  const renderStage = algo === "classic"
+    ? classicStereogram(sharedOpts)
+    : algo === "thimbleby"
+    ? thimblebyStereogram({ ...sharedOpts, occlude: occlude ?? true, occlusionMode: occlusionMode ?? "range-overlap" })
+    : tiledAutostereogram(sharedOpts);
 
   return [
     normalizeDepth(),
     blurDepth({ radius: blurRadius ?? 2 }),
     invertDepth(invert ?? false),
-    tiledAutostereogram({
-      eyeSeparation: eyeSeparation ?? 96,
-      depthStrength: depthStrength ?? 0.75,
-      patternRepeatWidth: patternRepeatWidth ?? undefined,
-    }),
+    renderStage,
   ];
 }
 
 export const MagicEyeCanvas = forwardRef<HTMLCanvasElement, MagicEyeCanvasProps>(function MagicEyeCanvas(
-  { pattern, depth, width, height, pipeline, onRendered, style, eyeSeparation, depthStrength, blurRadius, invertDepth: invert, patternRepeatWidth, ...canvasProps },
+  { pattern, depth, width, height, pipeline, onRendered, style, eyeSeparation, depthStrength, blurRadius, invertDepth: invert, patternRepeatWidth, subpixel, algorithm, occlude, occlusionMode, ...canvasProps },
   ref,
 ) {
   const innerRef = useRef<HTMLCanvasElement | null>(null);
   const stages = useMemo(
-    () => buildPipeline({ pipeline, eyeSeparation, depthStrength, blurRadius, invertDepth: invert, patternRepeatWidth } as MagicEyeCanvasProps),
-    [pipeline, eyeSeparation, depthStrength, blurRadius, invert, patternRepeatWidth],
+    () => buildPipeline({ pipeline, eyeSeparation, depthStrength, blurRadius, invertDepth: invert, patternRepeatWidth, subpixel, algorithm, occlude, occlusionMode } as MagicEyeCanvasProps),
+    [pipeline, eyeSeparation, depthStrength, blurRadius, invert, patternRepeatWidth, subpixel, algorithm, occlude, occlusionMode],
   );
 
   useEffect(() => {
