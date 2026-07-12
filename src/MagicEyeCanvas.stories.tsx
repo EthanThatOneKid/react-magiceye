@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { useMemo, useState } from "@storybook/preview-api";
+import { useCallback, useMemo, useRef, useState } from "@storybook/preview-api";
 import { MagicEyeCanvas } from "./MagicEyeCanvas";
 import type { MagicEyeCanvasProps } from "./types";
 
@@ -71,6 +71,17 @@ function FileUpload({ label, onFile }: { label: string; onFile: (dataUrl: string
   );
 }
 
+const btnStyle: React.CSSProperties = {
+  padding: "8px 16px",
+  border: "1px solid #d0d7de",
+  borderRadius: 6,
+  background: "#f6f8fa",
+  fontSize: 14,
+  cursor: "pointer",
+  color: "#1f2328",
+  fontFamily: "system-ui, sans-serif",
+};
+
 const meta: Meta<StoryArgs> = {
   title: "MagicEye/MagicEyeCanvas",
   component: MagicEyeCanvas,
@@ -136,6 +147,9 @@ export const Default: Story = {
   render: (args) => {
     const [customPattern, setCustomPattern] = useState<string | null>(null);
     const [customDepth, setCustomDepth] = useState<string | null>(null);
+    const [renderedCanvas, setRenderedCanvas] = useState<HTMLCanvasElement | null>(null);
+    const [copied, setCopied] = useState(false);
+    const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
     const patternSource = imagePresets[args.pattern] || customPattern || imagePresets["Blue dot tile"];
     const depthSource = imagePresets[args.depth] || customDepth || imagePresets["Raised circle depth"];
@@ -150,6 +164,37 @@ export const Default: Story = {
       patternRepeatWidth: args.patternRepeatWidth,
     }), [args.eyeSeparation, args.depthStrength, args.blurRadius, args.invertDepth, args.patternRepeatWidth]);
 
+    const handleRendered = useCallback((canvas: HTMLCanvasElement) => {
+      setRenderedCanvas(canvas);
+    }, []);
+
+    const handleDownload = useCallback(() => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const link = document.createElement("a");
+      link.download = "magic-eye.png";
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    }, []);
+
+    const handleCopyConfig = useCallback(() => {
+      const config = {
+        pattern: args.pattern,
+        depth: args.depth,
+        width: args.width,
+        height: args.height,
+        eyeSeparation: args.eyeSeparation,
+        depthStrength: args.depthStrength,
+        blurRadius: args.blurRadius,
+        invertDepth: args.invertDepth,
+        patternRepeatWidth: args.patternRepeatWidth,
+      };
+      navigator.clipboard.writeText(JSON.stringify(config, null, 2)).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      });
+    }, [args]);
+
     return (
       <div style={{ display: "grid", gap: 24, fontFamily: "system-ui, sans-serif" }}>
         <div style={{ display: "flex", gap: 24, flexWrap: "wrap", alignItems: "flex-start" }}>
@@ -163,12 +208,22 @@ export const Default: Story = {
           )}
         </div>
         <div style={{ display: "grid", gap: 8 }}>
-          <strong>Rendered Magic Eye</strong>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <strong>Rendered Magic Eye</strong>
+            <button type="button" style={btnStyle} onClick={handleDownload}>
+              Download PNG
+            </button>
+            <button type="button" style={btnStyle} onClick={handleCopyConfig}>
+              {copied ? "Copied!" : "Copy config"}
+            </button>
+          </div>
           <MagicEyeCanvas
+            ref={canvasRef}
             pattern={patternSource}
             depth={depthSource}
             width={args.width}
             height={args.height}
+            onRendered={handleRendered}
             style={{ border: "1px solid #d0d7de", maxWidth: "100%", height: "auto" }}
             {...controls}
           />
