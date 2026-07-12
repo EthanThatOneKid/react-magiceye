@@ -1,23 +1,27 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { useMemo, useState } from "@storybook/preview-api";
 import { MagicEyeCanvas } from "./MagicEyeCanvas";
 import type { MagicEyeCanvasProps } from "./types";
 
-const imagePresets = {
+const imagePresets: Record<string, string> = {
   "Blue dot tile": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScyMCcgaGVpZ2h0PScyMCcgdmlld0JveD0nMCAwIDIwIDIwJz48cmVjdCB3aWR0aD0nMjAnIGhlaWdodD0nMjAnIGZpbGw9JyNmZmYnLz48Y2lyY2xlIGN4PScxMCcgY3k9JzEwJyByPSczJyBmaWxsPScjMWQ0ZWQ4Jy8+PC9zdmc+",
   "Raised circle depth": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScyMCcgaGVpZ2h0PScyMCcgdmlld0JveD0nMCAwIDIwIDIwJz48cmVjdCB3aWR0aD0nMjAnIGhlaWdodD0nMjAnIGZpbGw9JyM4ODgnLz48Y2lyY2xlIGN4PScxMScgY3k9JzknIHI9JzYnIGZpbGw9JyNmZmYnLz48L3N2Zz4=",
   "Grid pattern": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScyMCcgaGVpZ2h0PScyMCcgdmlld0JveD0nMCAwIDIwIDIwJz48cmVjdCB3aWR0aD0nMjAnIGhlaWdodD0nMjAnIGZpbGw9JyNmZmYnLz48cGF0aCBkPSdNMCAwaDIwdjIwSDB6JyBmaWxsPSdub25lJyBzdHJva2U9JyMxZDRlZDgnIHN0cm9rZS13aWR0aD0nMicvPjwvc3ZnPg==",
   "Wavy depth": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScyMCcgaGVpZ2h0PScyMCcgdmlld0JveD0nMCAwIDIwIDIwJz48cmVjdCB3aWR0aD0nMjAnIGhlaWdodD0nMjAnIGZpbGw9JyM4ODgnLz48cGF0aCBkPSdNMCAxMGwxMCA4IDEwLTE2JyBmaWxsPSdub25lJyBzdHJva2U9JyNmZmYnIHN0cm9rZS13aWR0aD0nMicvPjwvc3ZnPg==",
   "Checkerboard pattern": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScyMCcgaGVpZ2h0PScyMCcgdmlld0JveD0nMCAwIDIwIDIwJz48cmVjdCB3aWR0aD0nMjAnIGhlaWdodD0nMjAnIGZpbGw9JyNmZmYnLz48cmVjdCB4PScwJyB5PScwJyB3aWR0aD0nMTAnIGhlaWdodD0nMTAnIGZpbGw9JyMxZDRlZDgnLz48cmVjdCB4PScxMCcgeT0nMTAnIHdpZHRoPScxMCcgaGVpZ2h0PScxMCcgZmlsbD0nIzFkNGVkOCcvPjwvc3ZnPg==",
   "Bullseye depth": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScyMCcgaGVpZ2h0PScyMCcgdmlld0JveD0nMCAwIDIwIDIwJz48cmVjdCB3aWR0aD0nMjAnIGhlaWdodD0nMjAnIGZpbGw9JyM4ODgnLz48Y2lyY2xlIGN4PScxMCcgY3k9JzEwJyByPSc5JyBmaWxsPScjZmZmJy8+PGNpcmNsZSBjeD0nMTAnIGN5PScxMCcgcj0nNScgZmlsbD0nIzg4OCcvPjxjaXJjbGUgY3g9JzEwJyBjeT0nMTAnIHI9JzInIGZpbGw9JyNmZmYnLz48L3N2Zz4=",
-} as const;
+  "Custom...": "",
+};
 
-type ImagePreset = keyof typeof imagePresets;
 type StoryArgs = Omit<MagicEyeCanvasProps, "pattern" | "depth"> & {
-  pattern: ImagePreset;
-  depth: ImagePreset;
+  pattern: string;
+  depth: string;
 };
 
 function ImagePreview({ label, src }: { label: string; src: string }) {
+  if (!src) {
+    return null;
+  }
   return (
     <div style={{ display: "grid", gap: 8 }}>
       <strong>{label}</strong>
@@ -30,9 +34,40 @@ function ImagePreview({ label, src }: { label: string; src: string }) {
           imageRendering: "pixelated",
           border: "1px solid #d0d7de",
           background: "#fff",
+          objectFit: "contain",
         }}
       />
     </div>
+  );
+}
+
+function FileUpload({ label, onFile }: { label: string; onFile: (dataUrl: string) => void }) {
+  return (
+    <label style={{
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      padding: "8px 12px",
+      border: "1px dashed #d0d7de",
+      borderRadius: 6,
+      cursor: "pointer",
+      fontSize: 14,
+      color: "#59636e",
+    }}>
+      {`Upload ${label}`}
+      <input
+        type="file"
+        accept="image/*"
+        style={{ display: "none" }}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = () => onFile(reader.result as string);
+          reader.readAsDataURL(file);
+        }}
+      />
+    </label>
   );
 }
 
@@ -98,23 +133,44 @@ export default meta;
 type Story = StoryObj<StoryArgs>;
 
 export const Default: Story = {
-  render: ({ pattern, depth, ...args }) => {
-    const patternSource = imagePresets[pattern];
-    const depthSource = imagePresets[depth];
+  render: (args) => {
+    const [customPattern, setCustomPattern] = useState<string | null>(null);
+    const [customDepth, setCustomDepth] = useState<string | null>(null);
+
+    const patternSource = imagePresets[args.pattern] || customPattern || imagePresets["Blue dot tile"];
+    const depthSource = imagePresets[args.depth] || customDepth || imagePresets["Raised circle depth"];
+    const showCustomPattern = args.pattern === "Custom...";
+    const showCustomDepth = args.depth === "Custom...";
+
+    const controls = useMemo(() => ({
+      eyeSeparation: args.eyeSeparation,
+      depthStrength: args.depthStrength,
+      blurRadius: args.blurRadius,
+      invertDepth: args.invertDepth,
+      patternRepeatWidth: args.patternRepeatWidth,
+    }), [args.eyeSeparation, args.depthStrength, args.blurRadius, args.invertDepth, args.patternRepeatWidth]);
 
     return (
       <div style={{ display: "grid", gap: 24, fontFamily: "system-ui, sans-serif" }}>
-        <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
-          <ImagePreview label={`Pattern: ${pattern}`} src={patternSource} />
-          <ImagePreview label={`Depth map: ${depth}`} src={depthSource} />
+        <div style={{ display: "flex", gap: 24, flexWrap: "wrap", alignItems: "flex-start" }}>
+          <ImagePreview label={`Pattern: ${args.pattern}`} src={patternSource} />
+          <ImagePreview label={`Depth map: ${args.depth}`} src={depthSource} />
+          {showCustomPattern && (
+            <FileUpload label="pattern image" onFile={setCustomPattern} />
+          )}
+          {showCustomDepth && (
+            <FileUpload label="depth image" onFile={setCustomDepth} />
+          )}
         </div>
         <div style={{ display: "grid", gap: 8 }}>
           <strong>Rendered Magic Eye</strong>
           <MagicEyeCanvas
-            {...args}
             pattern={patternSource}
             depth={depthSource}
+            width={args.width}
+            height={args.height}
             style={{ border: "1px solid #d0d7de", maxWidth: "100%", height: "auto" }}
+            {...controls}
           />
         </div>
       </div>
