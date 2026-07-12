@@ -31,6 +31,7 @@ export interface BlurDepthOptions {
 export interface TiledAutostereogramOptions {
   eyeSeparation?: number;
   depthStrength?: number;
+  patternRepeatWidth?: number;
 }
 
 export interface MagicEyeCanvasProps
@@ -41,4 +42,9 @@ export interface MagicEyeCanvasProps
   height: number;
   pipeline?: MagicEyeStage[];
   onRendered?: (canvas: HTMLCanvasElement) => void;
+  eyeSeparation?: number;
+  depthStrength?: number;
+  blurRadius?: number;
+  invertDepth?: boolean;
+  patternRepeatWidth?: number;
 }

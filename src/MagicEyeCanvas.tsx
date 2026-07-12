@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useMemo, useRef } from "react";
-import { createDefaultPipeline } from "./pipeline";
+import { blurDepth, createDefaultPipeline, invertDepth, normalizeDepth, tiledAutostereogram } from "./pipeline";
 import type { MagicEyeCanvasProps, MagicEyeImageSource, MagicEyePipelineContext, MagicEyeStage } from "./types";
 
 function isCanvasLike(source: MagicEyeImageSource): source is HTMLCanvasElement {
@@ -115,12 +115,44 @@ function runPipeline(context: MagicEyePipelineContext, stages: MagicEyeStage[]):
   return context.outputCanvas;
 }
 
+function buildPipeline({
+  pipeline,
+  eyeSeparation,
+  depthStrength,
+  blurRadius,
+  invertDepth: invert,
+  patternRepeatWidth,
+}: MagicEyeCanvasProps): MagicEyeStage[] {
+  if (pipeline) {
+    return pipeline;
+  }
+
+  const hasCreatorControls = eyeSeparation != null || depthStrength != null || blurRadius != null || invert != null || patternRepeatWidth != null;
+  if (!hasCreatorControls) {
+    return createDefaultPipeline();
+  }
+
+  return [
+    normalizeDepth(),
+    blurDepth({ radius: blurRadius ?? 2 }),
+    invertDepth(invert ?? false),
+    tiledAutostereogram({
+      eyeSeparation: eyeSeparation ?? 96,
+      depthStrength: depthStrength ?? 0.75,
+      patternRepeatWidth: patternRepeatWidth ?? undefined,
+    }),
+  ];
+}
+
 export const MagicEyeCanvas = forwardRef<HTMLCanvasElement, MagicEyeCanvasProps>(function MagicEyeCanvas(
-  { pattern, depth, width, height, pipeline, onRendered, style, ...canvasProps },
+  { pattern, depth, width, height, pipeline, onRendered, style, eyeSeparation, depthStrength, blurRadius, invertDepth: invert, patternRepeatWidth, ...canvasProps },
   ref,
 ) {
   const innerRef = useRef<HTMLCanvasElement | null>(null);
-  const stages = useMemo(() => pipeline ?? createDefaultPipeline(), [pipeline]);
+  const stages = useMemo(
+    () => buildPipeline({ pipeline, eyeSeparation, depthStrength, blurRadius, invertDepth: invert, patternRepeatWidth } as MagicEyeCanvasProps),
+    [pipeline, eyeSeparation, depthStrength, blurRadius, invert, patternRepeatWidth],
+  );
 
   useEffect(() => {
     let cancelled = false;

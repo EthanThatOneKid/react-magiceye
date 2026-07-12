@@ -159,6 +159,7 @@ export function tiledAutostereogram(
 ): MagicEyeStage {
   const eyeSeparation = Math.max(1, options.eyeSeparation ?? 96);
   const depthStrength = Math.max(0, options.depthStrength ?? 0.75);
+  const patternRepeatWidth = options.patternRepeatWidth != null ? Math.max(1, options.patternRepeatWidth) : null;
 
   return {
     name: "tiledAutostereogram",
@@ -166,7 +167,7 @@ export function tiledAutostereogram(
       const { width, height, patternData, outputCanvas } = context;
       const workingDepth = ensureWorkingDepth(context);
       const output = context.outputImageData;
-      const patternWidth = Math.max(1, patternData.width);
+      const patternWidth = patternRepeatWidth ?? Math.max(1, patternData.width);
       const patternHeight = Math.max(1, patternData.height);
       const patternPixels = patternData.data;
       const outputPixels = output.data;
