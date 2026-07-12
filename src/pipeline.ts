@@ -95,7 +95,12 @@ export function normalizeDepth(): MagicEyeStage {
       let min = Number.POSITIVE_INFINITY;
       let max = Number.NEGATIVE_INFINITY;
 
-      for (let i = 0, p = 0; i < pixelCount; i += 1, p += 4) {
+      for (let i = 0; i < pixelCount; i += 1) {
+        const x = i % width;
+        const y = Math.floor(i / width);
+        const sourceX = Math.min(depthData.width - 1, Math.floor((x / width) * depthData.width));
+        const sourceY = Math.min(depthData.height - 1, Math.floor((y / height) * depthData.height));
+        const p = (sourceY * depthData.width + sourceX) * 4;
         const value = luminanceFromImageData(depthData.data, p);
         normalized[i] = value;
         min = Math.min(min, value);
