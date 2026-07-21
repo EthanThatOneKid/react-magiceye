@@ -51,7 +51,7 @@ function drawSourceToCanvas(source: Exclude<MagicEyeImageSource, string>, width?
   return canvas;
 }
 
-async function loadImageSource(source: MagicEyeImageSource): Promise<HTMLCanvasElement> {
+async function loadImageSource(source: MagicEyeImageSource, width?: number, height?: number): Promise<HTMLCanvasElement> {
   if (typeof source !== "string") {
     if (isImageLike(source) && !source.complete) {
       await source.decode();
@@ -61,7 +61,7 @@ async function loadImageSource(source: MagicEyeImageSource): Promise<HTMLCanvasE
         source.addEventListener("loadeddata", () => resolve(), { once: true });
       });
     }
-    return drawSourceToCanvas(source);
+    return drawSourceToCanvas(source, width, height);
   }
 
   if (typeof window === "undefined") {
@@ -72,7 +72,7 @@ async function loadImageSource(source: MagicEyeImageSource): Promise<HTMLCanvasE
   image.crossOrigin = "anonymous";
   image.src = source;
   await image.decode();
-  return drawSourceToCanvas(image);
+  return drawSourceToCanvas(image, width, height);
 }
 
 function buildPipelineContext(
@@ -80,6 +80,7 @@ function buildPipelineContext(
   height: number,
   patternCanvas: HTMLCanvasElement,
   depthCanvas: HTMLCanvasElement,
+  cache?: MagicEyePipelineContext["cache"],
 ): MagicEyePipelineContext {
   const outputCanvas = createCanvas(width, height);
   const outputCtx = outputCanvas.getContext("2d");
@@ -104,6 +105,7 @@ function buildPipelineContext(
     normalizedDepth: new Float32Array(width * height),
     workingDepth: new Float32Array(width * height),
     outputImageData: outputCtx.createImageData(width, height),
+    cache,
   };
 }
 
@@ -163,6 +165,7 @@ export const MagicEyeCanvas = forwardRef<HTMLCanvasElement, MagicEyeCanvasProps>
   ref,
 ) {
   const innerRef = useRef<HTMLCanvasElement | null>(null);
+  const cacheRef = useRef<Exclude<MagicEyePipelineContext["cache"], undefined>>({});
   const stages = useMemo(
     () => buildPipeline({ pipeline, eyeSeparation, depthStrength, blurRadius, invertDepth: invert, patternRepeatWidth, subpixel, algorithm, occlude, occlusionMode } as MagicEyeCanvasProps),
     [pipeline, eyeSeparation, depthStrength, blurRadius, invert, patternRepeatWidth, subpixel, algorithm, occlude, occlusionMode],
@@ -181,7 +184,7 @@ export const MagicEyeCanvas = forwardRef<HTMLCanvasElement, MagicEyeCanvasProps>
         return;
       }
 
-      const context = buildPipelineContext(width, height, patternCanvas, depthCanvas);
+      const context = buildPipelineContext(width, height, patternCanvas, depthCanvas, cacheRef.current);
       const outputCanvas = runPipeline(context, stages);
       const target = innerRef.current;
       if (target) {

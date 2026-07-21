@@ -17,6 +17,15 @@ export interface MagicEyePipelineContext {
   normalizedDepth: Float32Array;
   workingDepth: Float32Array;
   outputImageData: ImageData;
+  cache?: {
+    normalizedDepth?: Float32Array;
+    workingDepth?: Float32Array;
+    outputImageData?: ImageData;
+    lookL?: Int32Array;
+    lookR?: Int32Array;
+    blurHorizontal?: Float32Array;
+    blurOutput?: Float32Array;
+  };
 }
 
 export interface MagicEyeStage {

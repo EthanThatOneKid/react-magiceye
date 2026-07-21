@@ -218,7 +218,6 @@ export function tiledAutostereogram(
   const eyeSeparation = Math.max(1, options.eyeSeparation ?? 96);
   const depthStrength = Math.max(0, options.depthStrength ?? 0.75);
   const patternRepeatWidth = options.patternRepeatWidth != null ? Math.max(1, options.patternRepeatWidth) : null;
-  const subpixel = options.subpixel ?? false;
 
   return {
     name: "tiledAutostereogram",
@@ -231,36 +230,127 @@ export function tiledAutostereogram(
       const patternPixels = patternData.data;
       const outputPixels = output.data;
 
+      let lookL = context.cache?.lookL;
+      let lookR = context.cache?.lookR;
+      if (!lookL || lookL.length !== width) {
+        lookL = new Int32Array(width);
+        if (context.cache) {
+          context.cache.lookL = lookL;
+        }
+      }
+      if (!lookR || lookR.length !== width) {
+        lookR = new Int32Array(width);
+        if (context.cache) {
+          context.cache.lookR = lookR;
+        }
+      }
+
       for (let y = 0; y < height; y += 1) {
         const rowStart = y * width;
 
-        for (let x = 0; x < width; x += 1) {
-          const depthValue = clamp01(workingDepth[rowStart + x] ?? 0.5);
-          const sep = computeSeparationFloat(depthValue, eyeSeparation, depthStrength);
-          const di = (rowStart + x) * 4;
+        for (let x = 0; x < width; x++) {
+          lookL[x] = x;
+          lookR[x] = x;
+        }
 
-          if (x < sep) {
-            // Fill with pattern
-            const patternX = x % patternWidth;
-            const patternY = y % patternHeight;
-            const si = (patternY * patternWidth + patternX) * 4;
-            outputPixels[di] = patternPixels[si];
-            outputPixels[di + 1] = patternPixels[si + 1];
-            outputPixels[di + 2] = patternPixels[si + 2];
-            outputPixels[di + 3] = patternPixels[si + 3];
-          } else {
-            // Copy/propagate from left partner
-            const srcX = x - sep;
-            if (subpixel) {
-              sampleBilinearAndWrite(outputPixels, width, height, srcX, y, di);
-            } else {
-              const sx = Math.max(0, Math.min(width - 1, Math.round(srcX)));
-              const si = (rowStart + sx) * 4;
-              outputPixels[di] = outputPixels[si];
-              outputPixels[di + 1] = outputPixels[si + 1];
-              outputPixels[di + 2] = outputPixels[si + 2];
-              outputPixels[di + 3] = outputPixels[si + 3];
+        for (let x = 0; x < width; x++) {
+          const depthValue = clamp01(workingDepth[rowStart + x] ?? 0.5);
+          const sep = Math.round(computeSeparationFloat(depthValue, eyeSeparation, depthStrength));
+          const left = Math.floor(x - sep / 2);
+          const right = left + sep;
+
+          if (left >= 0 && right < width) {
+            let vis = true;
+
+            if (lookL[right] !== right) {
+              if (lookL[right] < left) {
+                lookR[lookL[right]] = lookL[right];
+                lookL[right] = right;
+              } else {
+                vis = false;
+              }
             }
+
+            if (lookR[left] !== left) {
+              if (lookR[left] > right) {
+                lookL[lookR[left]] = lookR[left];
+                lookR[left] = left;
+              } else {
+                vis = false;
+              }
+            }
+
+            if (vis) {
+              lookL[right] = left;
+              lookR[left] = right;
+            }
+          }
+        }
+
+        const s = Math.floor(width / 2 - eyeSeparation / 2);
+        const poffset = patternWidth - (s % patternWidth);
+
+        // Resolve right side (from s to width - 1)
+        let lastlinked = -10;
+        for (let x = s; x < width; x++) {
+          const di = (rowStart + x) * 4;
+          if (lookL[x] === x || lookL[x] < s) {
+            // Free pixel
+            if (lastlinked === x - 1) {
+              outputPixels[di] = outputPixels[di - 4];
+              outputPixels[di + 1] = outputPixels[di - 3];
+              outputPixels[di + 2] = outputPixels[di - 2];
+              outputPixels[di + 3] = outputPixels[di - 1];
+            } else {
+              const patternX = (x + poffset) % patternWidth;
+              const patternY = y % patternHeight;
+              const si = (patternY * patternWidth + patternX) * 4;
+              outputPixels[di] = patternPixels[si];
+              outputPixels[di + 1] = patternPixels[si + 1];
+              outputPixels[di + 2] = patternPixels[si + 2];
+              outputPixels[di + 3] = patternPixels[si + 3];
+            }
+          } else {
+            // Constrained pixel
+            const srcIdx = lookL[x];
+            const si = (rowStart + srcIdx) * 4;
+            outputPixels[di] = outputPixels[si];
+            outputPixels[di + 1] = outputPixels[si + 1];
+            outputPixels[di + 2] = outputPixels[si + 2];
+            outputPixels[di + 3] = outputPixels[si + 3];
+            lastlinked = x;
+          }
+        }
+
+        // Resolve left side (from s - 1 down to 0)
+        lastlinked = -10;
+        for (let x = s - 1; x >= 0; x--) {
+          const di = (rowStart + x) * 4;
+          if (lookR[x] === x) {
+            // Free pixel
+            if (lastlinked === x + 1) {
+              outputPixels[di] = outputPixels[di + 4];
+              outputPixels[di + 1] = outputPixels[di + 5];
+              outputPixels[di + 2] = outputPixels[di + 6];
+              outputPixels[di + 3] = outputPixels[di + 7];
+            } else {
+              const patternX = (x + poffset) % patternWidth;
+              const patternY = y % patternHeight;
+              const si = (patternY * patternWidth + patternX) * 4;
+              outputPixels[di] = patternPixels[si];
+              outputPixels[di + 1] = patternPixels[si + 1];
+              outputPixels[di + 2] = patternPixels[si + 2];
+              outputPixels[di + 3] = patternPixels[si + 3];
+            }
+          } else {
+            // Constrained pixel
+            const srcIdx = lookR[x];
+            const si = (rowStart + srcIdx) * 4;
+            outputPixels[di] = outputPixels[si];
+            outputPixels[di + 1] = outputPixels[si + 1];
+            outputPixels[di + 2] = outputPixels[si + 2];
+            outputPixels[di + 3] = outputPixels[si + 3];
+            lastlinked = x;
           }
         }
       }
@@ -354,8 +444,20 @@ export function thimblebyStereogram(
       const patternPixels = patternData.data;
       const outputPixels = output.data;
 
-      const lookL = new Int32Array(width);
-      const lookR = new Int32Array(width);
+      let lookL = context.cache?.lookL;
+      let lookR = context.cache?.lookR;
+      if (!lookL || lookL.length !== width) {
+        lookL = new Int32Array(width);
+        if (context.cache) {
+          context.cache.lookL = lookL;
+        }
+      }
+      if (!lookR || lookR.length !== width) {
+        lookR = new Int32Array(width);
+        if (context.cache) {
+          context.cache.lookR = lookR;
+        }
+      }
 
       for (let y = 0; y < height; y += 1) {
         const rowStart = y * width;
@@ -401,23 +503,70 @@ export function thimblebyStereogram(
           }
         }
 
-        for (let x = 0; x < width; x++) {
+        const s = Math.floor(width / 2 - eyeSeparation / 2);
+        const poffset = patternWidth - (s % patternWidth);
+
+        // Resolve right side (from s to width - 1)
+        let lastlinked = -10;
+        for (let x = s; x < width; x++) {
           const di = (rowStart + x) * 4;
-          if (lookL[x] === x) {
-            const patternX = x % patternWidth;
-            const patternY = y % patternHeight;
-            const si = (patternY * patternWidth + patternX) * 4;
-            outputPixels[di] = patternPixels[si];
-            outputPixels[di + 1] = patternPixels[si + 1];
-            outputPixels[di + 2] = patternPixels[si + 2];
-            outputPixels[di + 3] = patternPixels[si + 3];
+          if (lookL[x] === x || lookL[x] < s) {
+            // Free pixel
+            if (lastlinked === x - 1) {
+              outputPixels[di] = outputPixels[di - 4];
+              outputPixels[di + 1] = outputPixels[di - 3];
+              outputPixels[di + 2] = outputPixels[di - 2];
+              outputPixels[di + 3] = outputPixels[di - 1];
+            } else {
+              const patternX = (x + poffset) % patternWidth;
+              const patternY = y % patternHeight;
+              const si = (patternY * patternWidth + patternX) * 4;
+              outputPixels[di] = patternPixels[si];
+              outputPixels[di + 1] = patternPixels[si + 1];
+              outputPixels[di + 2] = patternPixels[si + 2];
+              outputPixels[di + 3] = patternPixels[si + 3];
+            }
           } else {
+            // Constrained pixel
             const srcIdx = lookL[x];
             const si = (rowStart + srcIdx) * 4;
             outputPixels[di] = outputPixels[si];
             outputPixels[di + 1] = outputPixels[si + 1];
             outputPixels[di + 2] = outputPixels[si + 2];
             outputPixels[di + 3] = outputPixels[si + 3];
+            lastlinked = x;
+          }
+        }
+
+        // Resolve left side (from s - 1 down to 0)
+        lastlinked = -10;
+        for (let x = s - 1; x >= 0; x--) {
+          const di = (rowStart + x) * 4;
+          if (lookR[x] === x) {
+            // Free pixel
+            if (lastlinked === x + 1) {
+              outputPixels[di] = outputPixels[di + 4];
+              outputPixels[di + 1] = outputPixels[di + 5];
+              outputPixels[di + 2] = outputPixels[di + 6];
+              outputPixels[di + 3] = outputPixels[di + 7];
+            } else {
+              const patternX = (x + poffset) % patternWidth;
+              const patternY = y % patternHeight;
+              const si = (patternY * patternWidth + patternX) * 4;
+              outputPixels[di] = patternPixels[si];
+              outputPixels[di + 1] = patternPixels[si + 1];
+              outputPixels[di + 2] = patternPixels[si + 2];
+              outputPixels[di + 3] = patternPixels[si + 3];
+            }
+          } else {
+            // Constrained pixel
+            const srcIdx = lookR[x];
+            const si = (rowStart + srcIdx) * 4;
+            outputPixels[di] = outputPixels[si];
+            outputPixels[di + 1] = outputPixels[si + 1];
+            outputPixels[di + 2] = outputPixels[si + 2];
+            outputPixels[di + 3] = outputPixels[si + 3];
+            lastlinked = x;
           }
         }
       }
