@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { useCallback, useMemo, useRef, useState } from "@storybook/preview-api";
+import { useCallback, useMemo, useRef, useState } from "storybook/preview-api";
 import { MagicEyeCanvas } from "./MagicEyeCanvas";
 import type { MagicEyeCanvasProps } from "./types";
 
