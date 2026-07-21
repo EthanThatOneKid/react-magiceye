@@ -36,13 +36,28 @@ function boxBlur(
   width: number,
   height: number,
   radius: number,
+  cache?: MagicEyePipelineContext["cache"],
 ): Float32Array {
   if (radius <= 0) {
-    return copyBuffer(source);
+    return source;
   }
 
-  const horizontal = createFloatBuffer(width, height);
-  const output = createFloatBuffer(width, height);
+  const size = width * height;
+  let horizontal = cache?.blurHorizontal;
+  if (!horizontal || horizontal.length !== size) {
+    horizontal = new Float32Array(size);
+    if (cache) {
+      cache.blurHorizontal = horizontal;
+    }
+  }
+
+  let output = cache?.blurOutput;
+  if (!output || output.length !== size) {
+    output = new Float32Array(size);
+    if (cache) {
+      cache.blurOutput = output;
+    }
+  }
   const windowSize = radius * 2 + 1;
 
   for (let y = 0; y < height; y += 1) {
@@ -149,7 +164,7 @@ export function normalizeDepth(): MagicEyeStage {
     run(context) {
       const { width, height, depthData } = context;
       const pixelCount = width * height;
-      const normalized = createFloatBuffer(width, height);
+      const normalized = context.normalizedDepth;
       let min = Number.POSITIVE_INFINITY;
       let max = Number.NEGATIVE_INFINITY;
 
@@ -174,8 +189,7 @@ export function normalizeDepth(): MagicEyeStage {
         }
       }
 
-      context.normalizedDepth = normalized;
-      context.workingDepth = copyBuffer(normalized);
+      context.workingDepth.set(normalized);
     },
   };
 }
@@ -191,7 +205,8 @@ export function blurDepth(options: BlurDepthOptions = {}): MagicEyeStage {
       }
 
       const workingDepth = ensureWorkingDepth(context);
-      context.workingDepth = boxBlur(workingDepth, context.width, context.height, radius);
+      const blurred = boxBlur(workingDepth, context.width, context.height, radius, context.cache);
+      workingDepth.set(blurred);
     },
   };
 }

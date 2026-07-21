@@ -94,6 +94,25 @@ function buildPipelineContext(
   const patternData = patternCtx.getImageData(0, 0, patternCanvas.width, patternCanvas.height);
   const depthData = depthCtx.getImageData(0, 0, depthCanvas.width, depthCanvas.height);
 
+  const size = width * height;
+  let normalizedDepth = cache?.normalizedDepth;
+  if (!normalizedDepth || normalizedDepth.length !== size) {
+    normalizedDepth = new Float32Array(size);
+    if (cache) cache.normalizedDepth = normalizedDepth;
+  }
+
+  let workingDepth = cache?.workingDepth;
+  if (!workingDepth || workingDepth.length !== size) {
+    workingDepth = new Float32Array(size);
+    if (cache) cache.workingDepth = workingDepth;
+  }
+
+  let outputImageData = cache?.outputImageData;
+  if (!outputImageData || outputImageData.width !== width || outputImageData.height !== height) {
+    outputImageData = outputCtx.createImageData(width, height);
+    if (cache) cache.outputImageData = outputImageData;
+  }
+
   return {
     width,
     height,
@@ -102,9 +121,9 @@ function buildPipelineContext(
     outputCanvas,
     patternData,
     depthData,
-    normalizedDepth: new Float32Array(width * height),
-    workingDepth: new Float32Array(width * height),
-    outputImageData: outputCtx.createImageData(width, height),
+    normalizedDepth,
+    workingDepth,
+    outputImageData,
     cache,
   };
 }
