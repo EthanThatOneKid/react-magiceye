@@ -302,6 +302,7 @@ export function tiledAutostereogram(
           }
         }
 
+        const yShift = Math.max(1, Math.floor(patternHeight / 8));
         const s = Math.floor(width / 2 - eyeSeparation / 2);
         const poffset = patternWidth - (s % patternWidth);
 
@@ -318,7 +319,7 @@ export function tiledAutostereogram(
               outputPixels[di + 3] = outputPixels[di - 1];
             } else {
               const patternX = (x + poffset) % patternWidth;
-              const patternY = y % patternHeight;
+              const patternY = (y + Math.floor((x - s) / eyeSeparation) * yShift) % patternHeight;
               const si = (patternY * patternWidth + patternX) * 4;
               outputPixels[di] = patternPixels[si];
               outputPixels[di + 1] = patternPixels[si + 1];
@@ -350,7 +351,7 @@ export function tiledAutostereogram(
               outputPixels[di + 3] = outputPixels[di + 7];
             } else {
               const patternX = (x + poffset) % patternWidth;
-              const patternY = y % patternHeight;
+              const patternY = (y + Math.floor((s - x) / eyeSeparation + 1) * yShift) % patternHeight;
               const si = (patternY * patternWidth + patternX) * 4;
               outputPixels[di] = patternPixels[si];
               outputPixels[di + 1] = patternPixels[si + 1];
@@ -518,6 +519,7 @@ export function thimblebyStereogram(
           }
         }
 
+        const yShift = Math.max(1, Math.floor(patternHeight / 8));
         const s = Math.floor(width / 2 - eyeSeparation / 2);
         const poffset = patternWidth - (s % patternWidth);
 
@@ -534,7 +536,7 @@ export function thimblebyStereogram(
               outputPixels[di + 3] = outputPixels[di - 1];
             } else {
               const patternX = (x + poffset) % patternWidth;
-              const patternY = y % patternHeight;
+              const patternY = (y + Math.floor((x - s) / eyeSeparation) * yShift) % patternHeight;
               const si = (patternY * patternWidth + patternX) * 4;
               outputPixels[di] = patternPixels[si];
               outputPixels[di + 1] = patternPixels[si + 1];
@@ -566,7 +568,7 @@ export function thimblebyStereogram(
               outputPixels[di + 3] = outputPixels[di + 7];
             } else {
               const patternX = (x + poffset) % patternWidth;
-              const patternY = y % patternHeight;
+              const patternY = (y + Math.floor((s - x) / eyeSeparation + 1) * yShift) % patternHeight;
               const si = (patternY * patternWidth + patternX) * 4;
               outputPixels[di] = patternPixels[si];
               outputPixels[di + 1] = patternPixels[si + 1];

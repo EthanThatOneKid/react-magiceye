@@ -179,6 +179,22 @@ function buildPipeline({
   ];
 }
 
+function findBestPatternWidth(eyeSeparation: number, naturalWidth: number): number {
+  let bestW = eyeSeparation;
+  let minDiff = Math.abs(eyeSeparation - naturalWidth);
+
+  for (let w = 1; w <= eyeSeparation; w++) {
+    if (eyeSeparation % w === 0) {
+      const diff = Math.abs(w - naturalWidth);
+      if (diff < minDiff) {
+        minDiff = diff;
+        bestW = w;
+      }
+    }
+  }
+  return bestW;
+}
+
 export const MagicEyeCanvas = forwardRef<HTMLCanvasElement, MagicEyeCanvasProps>(function MagicEyeCanvas(
   { pattern, depth, width, height, pipeline, onRendered, style, eyeSeparation, depthStrength, blurRadius, invertDepth: invert, patternRepeatWidth, subpixel, algorithm, occlude, occlusionMode, ...canvasProps },
   ref,
@@ -194,10 +210,25 @@ export const MagicEyeCanvas = forwardRef<HTMLCanvasElement, MagicEyeCanvasProps>
     let cancelled = false;
 
     async function render() {
-      const [patternCanvas, depthCanvas] = await Promise.all([
+      let [patternCanvas, depthCanvas] = await Promise.all([
         loadImageSource(pattern),
         loadImageSource(depth),
       ]);
+
+      if (cancelled) {
+        return;
+      }
+
+      let finalPatternWidth = patternRepeatWidth;
+      if (finalPatternWidth == null) {
+        const naturalWidth = patternCanvas.width;
+        const targetEyeSep = eyeSeparation ?? 96;
+        finalPatternWidth = findBestPatternWidth(targetEyeSep, naturalWidth);
+      }
+
+      if (finalPatternWidth !== patternCanvas.width) {
+        patternCanvas = await loadImageSource(pattern, finalPatternWidth);
+      }
 
       if (cancelled) {
         return;
