@@ -87,13 +87,14 @@ function ensureWorkingDepth(context: MagicEyePipelineContext): Float32Array {
   return context.workingDepth;
 }
 
-function sampleBilinear(
+function sampleBilinearAndWrite(
   pixels: Uint8ClampedArray,
   width: number,
   height: number,
   fx: number,
   fy: number,
-): [number, number, number, number] {
+  targetIndex: number,
+): void {
   const x0 = Math.max(0, Math.min(width - 1, Math.floor(fx)));
   const x1 = Math.min(width - 1, x0 + 1);
   const y0 = Math.max(0, Math.min(height - 1, Math.floor(fy)));
@@ -106,24 +107,23 @@ function sampleBilinear(
   const i10 = (y1 * width + x0) * 4;
   const i11 = (y1 * width + x1) * 4;
 
-  const out: [number, number, number, number] = [0, 0, 0, 0];
-  for (let c = 0; c < 4; c++) {
-    const a = pixels[i00 + c] * (1 - wx) + pixels[i01 + c] * wx;
-    const b = pixels[i10 + c] * (1 - wx) + pixels[i11 + c] * wx;
-    out[c] = Math.round(a * (1 - wy) + b * wy);
-  }
-  return out;
-}
+  const w00 = (1 - wx) * (1 - wy);
+  const w01 = wx * (1 - wy);
+  const w10 = (1 - wx) * wy;
+  const w11 = wx * wy;
 
-function writePixel(
-  output: Uint8ClampedArray,
-  targetIndex: number,
-  pixel: [number, number, number, number],
-): void {
-  output[targetIndex] = pixel[0];
-  output[targetIndex + 1] = pixel[1];
-  output[targetIndex + 2] = pixel[2];
-  output[targetIndex + 3] = pixel[3];
+  pixels[targetIndex] = Math.round(
+    pixels[i00] * w00 + pixels[i01] * w01 + pixels[i10] * w10 + pixels[i11] * w11
+  );
+  pixels[targetIndex + 1] = Math.round(
+    pixels[i00 + 1] * w00 + pixels[i01 + 1] * w01 + pixels[i10 + 1] * w10 + pixels[i11 + 1] * w11
+  );
+  pixels[targetIndex + 2] = Math.round(
+    pixels[i00 + 2] * w00 + pixels[i01 + 2] * w01 + pixels[i10 + 2] * w10 + pixels[i11 + 2] * w11
+  );
+  pixels[targetIndex + 3] = Math.round(
+    pixels[i00 + 3] * w00 + pixels[i01 + 3] * w01 + pixels[i10 + 3] * w10 + pixels[i11 + 3] * w11
+  );
 }
 
 function getOutputPixel(
@@ -252,8 +252,7 @@ export function tiledAutostereogram(
             // Copy/propagate from left partner
             const srcX = x - sep;
             if (subpixel) {
-              const pixel = sampleBilinear(outputPixels, width, height, srcX, y);
-              writePixel(outputPixels, di, pixel);
+              sampleBilinearAndWrite(outputPixels, width, height, srcX, y, di);
             } else {
               const sx = Math.max(0, Math.min(width - 1, Math.round(srcX)));
               const si = (rowStart + sx) * 4;
@@ -315,8 +314,7 @@ export function classicStereogram(
             const srcX = x - sep;
             const di = (rowStart + x) * 4;
             if (subpixel) {
-              const pixel = sampleBilinear(outputPixels, width, height, srcX, y);
-              writePixel(outputPixels, di, pixel);
+              sampleBilinearAndWrite(outputPixels, width, height, srcX, y, di);
             } else {
               const sx = Math.max(0, Math.min(width - 1, Math.round(srcX)));
               const si = (rowStart + sx) * 4;
