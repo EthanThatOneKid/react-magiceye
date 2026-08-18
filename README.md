@@ -73,6 +73,24 @@ const img = renderStereogram({
 });
 ```
 
+## Preview gallery
+
+Real output of the library, rendered headlessly — every stereogram below is
+`renderStereogram` output for the matching `SCENES` entry (560×380, default
+seed), and each has its `renderDepthMap` hidden shape behind a click.
+Regenerate them with `node scripts/generate-previews.mjs`.
+
+| | |
+|---|---|
+| **Floating Sphere** — a smooth ball hovers in front of the noise.<br/><img src="previews/sphere.png" width="280" alt="Floating Sphere stereogram"/><details><summary>Show depth map</summary><img src="previews/sphere-depth.png" width="280" alt="Floating Sphere depth map"/></details> | **The Word “3D”** — bold letters pop out toward you.<br/><img src="previews/text3d.png" width="280" alt="3D text stereogram"/><details><summary>Show depth map</summary><img src="previews/text3d-depth.png" width="280" alt="3D text depth map"/></details> |
+| **Water Ripples** — concentric rings recede into a pond.<br/><img src="previews/ripples.png" width="280" alt="Water Ripples stereogram"/><details><summary>Show depth map</summary><img src="previews/ripples-depth.png" width="280" alt="Water Ripples depth map"/></details> | **Rising Pyramid** — a four-sided pyramid tips toward you.<br/><img src="previews/pyramid.png" width="280" alt="Rising Pyramid stereogram"/><details><summary>Show depth map</summary><img src="previews/pyramid-depth.png" width="280" alt="Rising Pyramid depth map"/></details> |
+| **Raised Heart** — a heart lifts off the background.<br/><img src="previews/heart.png" width="280" alt="Raised Heart stereogram"/><details><summary>Show depth map</summary><img src="previews/heart-depth.png" width="280" alt="Raised Heart depth map"/></details> | **Donut / Torus** — a ring floats with a hole in the middle.<br/><img src="previews/torus.png" width="280" alt="Donut stereogram"/><details><summary>Show depth map</summary><img src="previews/torus-depth.png" width="280" alt="Donut depth map"/></details> |
+| **Rolling Waves** — a rolling hill-and-valley surface.<br/><img src="previews/wave.png" width="280" alt="Rolling Waves stereogram"/><details><summary>Show depth map</summary><img src="previews/wave-depth.png" width="280" alt="Rolling Waves depth map"/></details> | **Sharp Cone** — a cone points straight at your eyes.<br/><img src="previews/cone.png" width="280" alt="Sharp Cone stereogram"/><details><summary>Show depth map</summary><img src="previews/cone-depth.png" width="280" alt="Sharp Cone depth map"/></details> |
+
+Relax your eyes and let them drift *past* the screen until the two patterns
+fuse — each image hides its 3D shape. Stuck? Click **Show depth map** under
+any image to reveal the hidden shape.
+
 ## Notes
 
 - The renderer is deterministic: the same depth map, palette, and seed always
