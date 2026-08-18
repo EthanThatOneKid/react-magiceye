@@ -1,75 +1,12 @@
 # react-magiceye
 
-A headless React canvas renderer for autostereograms, built around a small
-shader-like pipeline.
+A React canvas component that renders autostereograms (Magic Eye images)
+client-side, using the procedural Single Image Random Dot Stereogram (SIRDS)
+algorithm from Harold Thimbleby's paper "Displaying 3D Images: Algorithms for
+Single Image Random Dot Stereograms".
 
-Best mental model:
-
-```text
-pattern texture ┐
-                ├─ depth processors ─ stereo stage ─ post processors ─ canvas
-depth map ──────┘
-```
-
-`MagicEyeCanvas` does not include an editor or any UI chrome. It only renders to
-its canvas and lets you shape the output through pipeline stages.
-
-## Example
-
-```tsx
-import {
-  MagicEyeCanvas,
-  blurDepth,
-  invertDepth,
-  normalizeDepth,
-  tiledAutostereogram,
-} from "react-magiceye";
-
-export function Demo({ patternImage, depthImage }: {
-  patternImage: HTMLImageElement;
-  depthImage: HTMLImageElement;
-}) {
-  return (
-    <MagicEyeCanvas
-      pattern={patternImage}
-      depth={depthImage}
-      width={1024}
-      height={768}
-      pipeline={[
-        normalizeDepth(),
-        blurDepth({ radius: 2 }),
-        invertDepth(false),
-        tiledAutostereogram({
-          eyeSeparation: 96,
-          depthStrength: 0.75,
-        }),
-      ]}
-    />
-  );
-}
-```
-
-## Pipeline order
-
-- `normalizeDepth()` converts the depth source into a 0–1 float buffer.
-- `blurDepth({ radius })` smooths the depth map.
-- `invertDepth(enabled)` flips near/far values when needed.
-- `tiledAutostereogram()` turns the processed depth buffer into the final
-  stereogram.
-
-You can also pass your own custom stages if you want to insert extra processing
-between any of those steps.
-
-## Source types
-
-`pattern` and `depth` accept:
-
-- `HTMLImageElement`
-- `HTMLCanvasElement`
-- `HTMLVideoElement`
-- `ImageBitmap`
-- `ImageData`
-- `string` URLs
+Every scene is generated live in the browser from a mathematical depth map and
+a procedurally generated dot pattern — no image assets required.
 
 ## Install
 
@@ -80,9 +17,66 @@ bun install
 bun run typecheck
 ```
 
+## Example
+
+```tsx
+import { MagicEyeCanvas, sphere } from "react-magiceye";
+
+export function Demo() {
+  return (
+    <MagicEyeCanvas
+      width={640}
+      height={480}
+      depth={sphere}
+      palette="dots"
+    />
+  );
+}
+```
+
+## `MagicEyeCanvas` props
+
+| Prop             | Type                       | Default            | Description                                                              |
+| ---------------- | -------------------------- | ------------------ | ------------------------------------------------------------------------ |
+| `width`          | `number`                   | — (required)       | Render resolution width.                                                 |
+| `height`         | `number`                   | — (required)       | Render resolution height.                                                |
+| `depth`          | `DepthFn`                  | — (required)       | Depth function: `(x, y, w, h) => 0..1` where 0 = far, 1 = near.          |
+| `palette`        | `"dots" \| "rainbow" \| "candy" \| "mono"` | `"dots"` | Pattern flavor. Dots = classic high-contrast random dots.                |
+| `eyeSeparation`  | `number`                   | `round(w / 3.2)`   | Eye separation in pixels. Larger = pattern repeats less often.           |
+| `mu`             | `number`                   | `1/3`              | Depth-of-field fraction; higher = stronger depth range.                  |
+| `seed`           | `number`                   | `1337`             | PRNG seed. Bump it to regenerate the pattern.                            |
+| `showDepth`      | `boolean`                  | `false`            | Render the raw depth map instead of the stereogram.                      |
+| `onRendered`     | `(canvas) => void`         | —                  | Called with the rendered canvas after each draw.                         |
+
+## Depth functions
+
+The library ships a set of ready-made `DepthFn`s: `sphere`, `pyramid`,
+`ripples`, `wave`, `cone`, `heart`, `torus`, and `makeTextDepth("3D")` for
+raised text. `SCENES` pairs each depth map with a title, hint, and suggested
+palette for the gallery demo.
+
+Any function `(x, y, w, h) => 0..1` works, so you can also supply your own.
+
+## Headless usage
+
+`renderStereogram` and `renderDepthMap` return `ImageData` directly, so the
+renderer can be used without React:
+
+```ts
+import { renderStereogram, sphere } from "react-magiceye";
+
+const img = renderStereogram({
+  width: 640,
+  height: 480,
+  depth: sphere,
+  palette: "dots",
+});
+```
+
 ## Notes
 
-- The renderer is deliberately headless.
-- The canvas is the only output.
-- The pipeline is deterministic, so the same pattern, depth map, and stage
-  order always produce the same image.
+- The renderer is deterministic: the same depth map, palette, and seed always
+  produce the same image.
+- Renders synchronously to a canvas; heavy resolutions will block briefly.
+- The algorithm applies Thimbleby's separation formula `s = (1 − μz)·E / (2 − μz)`
+  with a per-scanline hidden-surface visibility check.

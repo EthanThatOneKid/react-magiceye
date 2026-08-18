@@ -1,74 +1,21 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { useCallback, useMemo, useRef, useState } from "storybook/preview-api";
+import { useCallback, useRef, useState } from "react";
 import { MagicEyeCanvas } from "./MagicEyeCanvas";
-import type { MagicEyeCanvasProps } from "./types";
+import type { MagicEyeCanvasProps } from "./MagicEyeCanvas";
+import { SCENES } from "./procedural";
+import type { SceneDef, ScenePalette } from "./procedural";
 
-const imagePresets: Record<string, string> = {
-  "Blue dot tile": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScyMCcgaGVpZ2h0PScyMCcgdmlld0JveD0nMCAwIDIwIDIwJz48cmVjdCB3aWR0aD0nMjAnIGhlaWdodD0nMjAnIGZpbGw9JyNmZmYnLz48Y2lyY2xlIGN4PScxMCcgY3k9JzEwJyByPSczJyBmaWxsPScjMWQ0ZWQ4Jy8+PC9zdmc+",
-  "Raised circle depth": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScyMCcgaGVpZ2h0PScyMCcgdmlld0JveD0nMCAwIDIwIDIwJz48cmVjdCB3aWR0aD0nMjAnIGhlaWdodD0nMjAnIGZpbGw9JyM4ODgnLz48Y2lyY2xlIGN4PScxMScgY3k9JzknIHI9JzYnIGZpbGw9JyNmZmYnLz48L3N2Zz4=",
-  "Grid pattern": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScyMCcgaGVpZ2h0PScyMCcgdmlld0JveD0nMCAwIDIwIDIwJz48cmVjdCB3aWR0aD0nMjAnIGhlaWdodD0nMjAnIGZpbGw9JyNmZmYnLz48cGF0aCBkPSdNMCAwaDIwdjIwSDB6JyBmaWxsPSdub25lJyBzdHJva2U9JyMxZDRlZDgnIHN0cm9rZS13aWR0aD0nMicvPjwvc3ZnPg==",
-  "Wavy depth": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScyMCcgaGVpZ2h0PScyMCcgdmlld0JveD0nMCAwIDIwIDIwJz48cmVjdCB3aWR0aD0nMjAnIGhlaWdodD0nMjAnIGZpbGw9JyM4ODgnLz48cGF0aCBkPSdNMCAxMGwxMCA4IDEwLTE2JyBmaWxsPSdub25lJyBzdHJva2U9JyNmZmYnIHN0cm9rZS13aWR0aD0nMicvPjwvc3ZnPg==",
-  "Checkerboard pattern": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScyMCcgaGVpZ2h0PScyMCcgdmlld0JveD0nMCAwIDIwIDIwJz48cmVjdCB3aWR0aD0nMjAnIGhlaWdodD0nMjAnIGZpbGw9JyNmZmYnLz48cmVjdCB4PScwJyB5PScwJyB3aWR0aD0nMTAnIGhlaWdodD0nMTAnIGZpbGw9JyMxZDRlZDgnLz48cmVjdCB4PScxMCcgeT0nMTAnIHdpZHRoPScxMCcgaGVpZ2h0PScxMCcgZmlsbD0nIzFkNGVkOCcvPjwvc3ZnPg==",
-  "Bullseye depth": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScyMCcgaGVpZ2h0PScyMCcgdmlld0JveD0nMCAwIDIwIDIwJz48cmVjdCB3aWR0aD0nMjAnIGhlaWdodD0nMjAnIGZpbGw9JyM4ODgnLz48Y2lyY2xlIGN4PScxMCcgY3k9JzEwJyByPSc5JyBmaWxsPScjZmZmJy8+PGNpcmNsZSBjeD0nMTAnIGN5PScxMCcgcj0nNScgZmlsbD0nIzg4OCcvPjxjaXJjbGUgY3g9JzEwJyBjeT0nMTAnIHI9JzInIGZpbGw9JyNmZmYnLz48L3N2Zz4=",
-  "Custom...": "",
+type StoryArgs = Pick<
+  MagicEyeCanvasProps,
+  "width" | "height" | "eyeSeparation" | "mu" | "seed" | "showDepth" | "palette"
+> & {
+  sceneId: string;
 };
 
-type StoryArgs = Omit<MagicEyeCanvasProps, "pattern" | "depth"> & {
-  pattern: string;
-  depth: string;
-};
+const sceneOptions = SCENES.map((s) => s.id);
 
-function ImagePreview({ label, src }: { label: string; src: string }) {
-  if (!src) {
-    return null;
-  }
-  return (
-    <div style={{ display: "grid", gap: 8 }}>
-      <strong>{label}</strong>
-      <img
-        src={src}
-        alt={label}
-        style={{
-          width: 120,
-          height: 120,
-          imageRendering: "pixelated",
-          border: "1px solid #d0d7de",
-          background: "#fff",
-          objectFit: "contain",
-        }}
-      />
-    </div>
-  );
-}
-
-function FileUpload({ label, onFile }: { label: string; onFile: (dataUrl: string) => void }) {
-  return (
-    <label style={{
-      display: "flex",
-      alignItems: "center",
-      gap: 8,
-      padding: "8px 12px",
-      border: "1px dashed #d0d7de",
-      borderRadius: 6,
-      cursor: "pointer",
-      fontSize: 14,
-      color: "#59636e",
-    }}>
-      {`Upload ${label}`}
-      <input
-        type="file"
-        accept="image/*"
-        style={{ display: "none" }}
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (!file) return;
-          const reader = new FileReader();
-          reader.onload = () => onFile(reader.result as string);
-          reader.readAsDataURL(file);
-        }}
-      />
-    </label>
-  );
+function sceneFor(sceneId: string): SceneDef {
+  return SCENES.find((s) => s.id === sceneId) ?? SCENES[0];
 }
 
 const btnStyle: React.CSSProperties = {
@@ -84,79 +31,44 @@ const btnStyle: React.CSSProperties = {
 
 const meta: Meta<StoryArgs> = {
   title: "MagicEye/MagicEyeCanvas",
-  component: MagicEyeCanvas,
   args: {
-    pattern: "Blue dot tile",
-    depth: "Raised circle depth",
+    sceneId: "sphere",
     width: 640,
     height: 480,
-    eyeSeparation: 96,
-    depthStrength: 0.75,
-    blurRadius: 2,
-    invertDepth: false,
-    algorithm: "phase",
-    subpixel: false,
-    occlude: true,
-    occlusionMode: "range-overlap",
+    palette: "dots",
+    eyeSeparation: undefined,
+    mu: undefined,
+    seed: 1337,
+    showDepth: false,
   },
   argTypes: {
-    pattern: {
+    sceneId: {
       control: "select",
-      options: Object.keys(imagePresets),
+      options: sceneOptions,
+      description: "Depth map to render. Choose “custom” below to supply your own DepthFn.",
     },
-    depth: {
+    palette: {
       control: "select",
-      options: Object.keys(imagePresets),
+      options: ["dots", "rainbow", "candy", "mono"],
+      description: "Pattern flavor. Dots = classic high-contrast random dots.",
     },
-    width: {
-      control: { type: "range", min: 100, max: 1200, step: 10 },
-    },
-    height: {
-      control: { type: "range", min: 100, max: 900, step: 10 },
-    },
+    width: { control: { type: "range", min: 100, max: 1200, step: 10 } },
+    height: { control: { type: "range", min: 100, max: 900, step: 10 } },
     eyeSeparation: {
-      control: { type: "range", min: 1, max: 300, step: 1 },
-      description: "Controls eye spacing. Higher = deeper effect, lower = flatter.",
+      control: { type: "range", min: 20, max: 400, step: 1 },
+      description: "Eye separation in pixels. Larger = pattern repeats less often.",
     },
-    depthStrength: {
-      control: { type: "range", min: 0, max: 2, step: 0.01 },
-      description: "How strongly depth shifts the pattern. 0 = flat, 1 = normal, 2 = exaggerated.",
+    mu: {
+      control: { type: "range", min: 0.05, max: 0.9, step: 0.01 },
+      description: "Depth-of-field fraction. Higher = stronger depth range.",
     },
-    blurRadius: {
-      control: { type: "range", min: 0, max: 20, step: 1 },
-      description: "Blur applied to the depth map. Smoother transitions at higher values.",
+    seed: {
+      control: { type: "number" },
+      description: "PRNG seed. Change it to regenerate the dot pattern.",
     },
-    invertDepth: {
+    showDepth: {
       control: "boolean",
-      description: "Swap near and far. Makes indented shapes pop out and vice versa.",
-    },
-    patternRepeatWidth: {
-      control: { type: "range", min: 1, max: 200, step: 1 },
-      description: "Override the pattern tile width. Wider = pattern repeats less often.",
-    },
-    algorithm: {
-      control: "select",
-      options: ["phase", "classic", "thimbleby"],
-      description: "Rendering algorithm. Phase = pattern offset, Classic = left-to-right copy, Thimbleby = occlusion-aware.",
-    },
-    subpixel: {
-      control: "boolean",
-      description: "Bilinear interpolation for sub-pixel shifts. Sharper at depth edges.",
-    },
-    occlude: {
-      control: "boolean",
-      description: "Enable occlusion detection (Thimbleby only). Hides background pixels behind foreground.",
-    },
-    occlusionMode: {
-      control: "select",
-      options: ["range-overlap", "shortest-link"],
-      description: "Occlusion resolution strategy (Thimbleby only).",
-    },
-    pipeline: {
-      table: { disable: true },
-    },
-    onRendered: {
-      table: { disable: true },
+      description: "Render the raw depth map instead of the stereogram.",
     },
   },
 };
@@ -167,32 +79,9 @@ type Story = StoryObj<StoryArgs>;
 
 export const Default: Story = {
   render: (args) => {
-    const [customPattern, setCustomPattern] = useState<string | null>(null);
-    const [customDepth, setCustomDepth] = useState<string | null>(null);
-    const [renderedCanvas, setRenderedCanvas] = useState<HTMLCanvasElement | null>(null);
-    const [copied, setCopied] = useState(false);
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
-
-    const patternSource = imagePresets[args.pattern] || customPattern || imagePresets["Blue dot tile"];
-    const depthSource = imagePresets[args.depth] || customDepth || imagePresets["Raised circle depth"];
-    const showCustomPattern = args.pattern === "Custom...";
-    const showCustomDepth = args.depth === "Custom...";
-
-    const controls = useMemo(() => ({
-      eyeSeparation: args.eyeSeparation,
-      depthStrength: args.depthStrength,
-      blurRadius: args.blurRadius,
-      invertDepth: args.invertDepth,
-      patternRepeatWidth: args.patternRepeatWidth,
-      subpixel: args.subpixel,
-      algorithm: args.algorithm,
-      occlude: args.occlude,
-      occlusionMode: args.occlusionMode,
-    }), [args.eyeSeparation, args.depthStrength, args.blurRadius, args.invertDepth, args.patternRepeatWidth, args.subpixel, args.algorithm, args.occlude, args.occlusionMode]);
-
-    const handleRendered = useCallback((canvas: HTMLCanvasElement) => {
-      setRenderedCanvas(canvas);
-    }, []);
+    const scene = sceneFor(args.sceneId);
+    const palette = args.palette ?? scene.palette;
 
     const handleDownload = useCallback(() => {
       const canvas = canvasRef.current;
@@ -203,205 +92,158 @@ export const Default: Story = {
       link.click();
     }, []);
 
-    const handleCopyConfig = useCallback(() => {
-      const config = {
-        pattern: args.pattern,
-        depth: args.depth,
-        width: args.width,
-        height: args.height,
-        eyeSeparation: args.eyeSeparation,
-        depthStrength: args.depthStrength,
-        blurRadius: args.blurRadius,
-        invertDepth: args.invertDepth,
-        patternRepeatWidth: args.patternRepeatWidth,
-      };
-      navigator.clipboard.writeText(JSON.stringify(config, null, 2)).then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      });
-    }, [args]);
-
     return (
-      <div style={{ display: "grid", gap: 24, fontFamily: "system-ui, sans-serif" }}>
-        <div style={{ display: "flex", gap: 24, flexWrap: "wrap", alignItems: "flex-start" }}>
-          <ImagePreview label={`Pattern: ${args.pattern}`} src={patternSource} />
-          <ImagePreview label={`Depth map: ${args.depth}`} src={depthSource} />
-          {showCustomPattern && (
-            <FileUpload label="pattern image" onFile={setCustomPattern} />
-          )}
-          {showCustomDepth && (
-            <FileUpload label="depth image" onFile={setCustomDepth} />
-          )}
+      <div style={{ display: "grid", gap: 12, fontFamily: "system-ui, sans-serif" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <strong>{scene.title}</strong>
+          <span style={{ color: "#59636e", fontSize: 13 }}>{scene.hint}</span>
+          <button type="button" style={btnStyle} onClick={handleDownload}>
+            Download PNG
+          </button>
         </div>
-        <div style={{ display: "grid", gap: 8 }}>
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <strong>Rendered Magic Eye</strong>
-            <button type="button" style={btnStyle} onClick={handleDownload}>
-              Download PNG
-            </button>
-            <button type="button" style={btnStyle} onClick={handleCopyConfig}>
-              {copied ? "Copied!" : "Copy config"}
-            </button>
-          </div>
-          <MagicEyeCanvas
-            ref={canvasRef}
-            pattern={patternSource}
-            depth={depthSource}
-            width={args.width}
-            height={args.height}
-            onRendered={handleRendered}
-            style={{ border: "1px solid #d0d7de", maxWidth: "100%", height: "auto" }}
-            {...controls}
-          />
-        </div>
+        <MagicEyeCanvas
+          ref={canvasRef}
+          width={args.width}
+          height={args.height}
+          depth={scene.depth}
+          palette={palette}
+          eyeSeparation={args.eyeSeparation}
+          mu={args.mu}
+          seed={args.seed}
+          showDepth={args.showDepth}
+          style={{ border: "1px solid #d0d7de", maxWidth: "100%", height: "auto" }}
+        />
       </div>
     );
   },
 };
 
-interface Preset {
-  label: string;
-  description: string;
-  pattern: string;
-  depth: string;
-  width: number;
-  height: number;
-  eyeSeparation?: number;
-  depthStrength?: number;
-  blurRadius?: number;
-  invertDepth?: boolean;
-  patternRepeatWidth?: number;
-  subpixel?: boolean;
-  algorithm?: "phase" | "classic" | "thimbleby";
-  occlude?: boolean;
-  occlusionMode?: "range-overlap" | "shortest-link";
+const cardStyle: React.CSSProperties = {
+  display: "grid",
+  gap: 10,
+  border: "1px solid #d0d7de",
+  borderRadius: 8,
+  padding: 12,
+  background: "#fff",
+};
+
+function MagicEyeCard({ scene }: { scene: SceneDef }) {
+  const [showDepth, setShowDepth] = useState(false);
+  const [seed, setSeed] = useState(1337);
+
+  return (
+    <div style={cardStyle}>
+      <div style={{ position: "relative", lineHeight: 0 }}>
+        <MagicEyeCanvas
+          width={560}
+          height={380}
+          depth={scene.depth}
+          palette={scene.palette}
+          seed={seed}
+          showDepth={showDepth}
+          style={{ display: "block", width: "100%", height: "auto", borderRadius: 6, border: "1px solid #e1e4e8", background: "#000" }}
+          aria-label={`Autostereogram: ${scene.title}. ${scene.hint}`}
+        />
+        {showDepth && (
+          <span
+            style={{
+              position: "absolute",
+              top: 6,
+              left: 6,
+              background: "rgba(255,255,255,0.12)",
+              color: "#fff",
+              fontSize: 10,
+              fontWeight: 600,
+              letterSpacing: 1,
+              textTransform: "uppercase",
+              padding: "2px 6px",
+              borderRadius: 4,
+              fontFamily: "system-ui, sans-serif",
+            }}
+          >
+            depth map
+          </span>
+        )}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+        <div style={{ minWidth: 0 }}>
+          <h3 style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#1f2328", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontFamily: "system-ui, sans-serif" }}>
+            {scene.title}
+          </h3>
+          <p style={{ margin: 0, fontSize: 11, color: "#59636e", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontFamily: "system-ui, sans-serif" }}>
+            {scene.hint}
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+          <button
+            type="button"
+            style={{ ...btnStyle, padding: "4px 10px", fontSize: 12, background: showDepth ? "#1f2328" : "#f6f8fa", color: showDepth ? "#fff" : "#1f2328" }}
+            onClick={() => setShowDepth((v) => !v)}
+          >
+            {showDepth ? "Hide depth" : "Reveal"}
+          </button>
+          <button
+            type="button"
+            style={{ ...btnStyle, padding: "4px 10px", fontSize: 12, opacity: showDepth ? 0.5 : 1, cursor: showDepth ? "default" : "pointer" }}
+            onClick={() => setSeed((s) => s + 1)}
+            disabled={showDepth}
+            title="Regenerate the dot pattern"
+          >
+            Shuffle
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
-const presets: Preset[] = [
-  {
-    label: "Easy Focus",
-    description: "High depth strength, clear separation, smooth blur. Good for first-time viewers.",
-    pattern: "Blue dot tile",
-    depth: "Raised circle depth",
-    width: 300, height: 300,
-    eyeSeparation: 120, depthStrength: 1.2, blurRadius: 3,
-  },
-  {
-    label: "Smooth Depth",
-    description: "Heavy blur creates gradual, gentle depth transitions.",
-    pattern: "Grid pattern",
-    depth: "Wavy depth",
-    width: 300, height: 300,
-    eyeSeparation: 96, depthStrength: 0.8, blurRadius: 10,
-  },
-  {
-    label: "Deep Cut",
-    description: "Inverted depth with high separation. Indented shapes pop out aggressively.",
-    pattern: "Checkerboard pattern",
-    depth: "Bullseye depth",
-    width: 300, height: 300,
-    eyeSeparation: 160, depthStrength: 1.5, blurRadius: 1, invertDepth: true,
-  },
-  {
-    label: "Subtle Illusion",
-    description: "Low depth strength with wide pattern repeat. A gentle 3D effect.",
-    pattern: "Blue dot tile",
-    depth: "Raised circle depth",
-    width: 300, height: 300,
-    eyeSeparation: 80, depthStrength: 0.3, blurRadius: 4, patternRepeatWidth: 80,
-  },
-  {
-    label: "Hard Mode",
-    description: "Sharp depth map, weak separation, small pattern. Takes patience to see.",
-    pattern: "Checkerboard pattern",
-    depth: "Raised circle depth",
-    width: 300, height: 300,
-    eyeSeparation: 40, depthStrength: 0.5, blurRadius: 0,
-  },
-  {
-    label: "Wide Angle",
-    description: "Large eye separation and strong depth. The illusion jumps out fast.",
-    pattern: "Grid pattern",
-    depth: "Bullseye depth",
-    width: 300, height: 300,
-    eyeSeparation: 200, depthStrength: 1.8, blurRadius: 2,
-  },
-  {
-    label: "Cross-Eyed",
-    description: "Inverted depth for cross-eyed viewing. Pop-outs become indents.",
-    pattern: "Blue dot tile",
-    depth: "Raised circle depth",
-    width: 300, height: 300,
-    eyeSeparation: 96, depthStrength: 0.75, blurRadius: 2, invertDepth: true,
-  },
-  {
-    label: "Thimbleby Occlusion",
-    description: "Occlusion-aware rendering with classic algorithm. Handles overlapping depth layers.",
-    pattern: "Blue dot tile",
-    depth: "Bullseye depth",
-    width: 300, height: 300,
-    eyeSeparation: 96, depthStrength: 0.75, blurRadius: 2,
-    algorithm: "thimbleby" as const, subpixel: true,
-  },
-];
-
 export const Gallery: Story = {
-  name: "Preset Gallery",
+  name: "The Magic Eye Gallery",
   parameters: { controls: { hideNoControlsWarning: true } },
   argTypes: {
-    pattern: { table: { disable: true } },
-    depth: { table: { disable: true } },
+    sceneId: { table: { disable: true } },
+    palette: { table: { disable: true } },
     width: { table: { disable: true } },
     height: { table: { disable: true } },
     eyeSeparation: { table: { disable: true } },
-    depthStrength: { table: { disable: true } },
-    blurRadius: { table: { disable: true } },
-    invertDepth: { table: { disable: true } },
-    patternRepeatWidth: { table: { disable: true } },
-    algorithm: { table: { disable: true } },
-    subpixel: { table: { disable: true } },
-    occlude: { table: { disable: true } },
-    occlusionMode: { table: { disable: true } },
-    pipeline: { table: { disable: true } },
-    onRendered: { table: { disable: true } },
+    mu: { table: { disable: true } },
+    seed: { table: { disable: true } },
+    showDepth: { table: { disable: true } },
   },
   render: () => (
-    <div style={{ display: "grid", gap: 32, fontFamily: "system-ui, sans-serif", maxWidth: 1000 }}>
-      <h2 style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>Preset Gallery</h2>
-      <p style={{ margin: 0, color: "#59636e", fontSize: 14 }}>
-        Pre-configured combinations to show what the engine can do.
-      </p>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 24 }}>
-        {presets.map((p) => (
-          <div key={p.label} style={{
-            display: "grid",
-            gap: 8,
-            border: "1px solid #d0d7de",
-            borderRadius: 8,
-            padding: 16,
-            background: "#fff",
-          }}>
-            <div style={{ fontWeight: 600, fontSize: 15 }}>{p.label}</div>
-            <div style={{ fontSize: 13, color: "#59636e", maxWidth: 300 }}>{p.description}</div>
-            <MagicEyeCanvas
-              pattern={imagePresets[p.pattern]}
-              depth={imagePresets[p.depth]}
-              width={p.width}
-              height={p.height}
-              eyeSeparation={p.eyeSeparation}
-              depthStrength={p.depthStrength}
-              blurRadius={p.blurRadius}
-              invertDepth={p.invertDepth}
-              patternRepeatWidth={p.patternRepeatWidth}
-              subpixel={p.subpixel}
-              algorithm={p.algorithm}
-              occlude={p.occlude}
-              occlusionMode={p.occlusionMode}
-              style={{ border: "1px solid #e1e4e8", borderRadius: 4 }}
-            />
-          </div>
+    <div style={{ display: "grid", gap: 24, fontFamily: "system-ui, sans-serif", maxWidth: 1100 }}>
+      <div>
+        <p style={{ margin: 0, fontSize: 11, letterSpacing: 2, textTransform: "uppercase", color: "#59636e", fontFamily: "system-ui, sans-serif" }}>
+          Single Image Random Dot Stereograms
+        </p>
+        <h2 style={{ margin: "6px 0 8px", fontSize: 26, fontWeight: 700, color: "#1f2328", fontFamily: "system-ui, sans-serif" }}>
+          The Magic Eye Gallery
+        </h2>
+        <p style={{ margin: 0, maxWidth: 640, fontSize: 13, lineHeight: 1.6, color: "#59636e", fontFamily: "system-ui, sans-serif" }}>
+          Every image below is generated live in your browser from mathematical depth maps and a
+          procedurally generated dot pattern — no image assets needed. Relax your eyes and let them
+          drift <em>past</em> the screen until the two patterns fuse. A hidden 3D shape will float
+          into view.
+        </p>
+      </div>
+
+      <ol style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexWrap: "wrap", gap: "8px 32px", fontSize: 12, color: "#59636e", fontFamily: "system-ui, sans-serif" }}>
+        <li>01 · Stare through the image, not at it</li>
+        <li>02 · Let the repeating pattern double, then overlap</li>
+        <li>03 · Hold the focus — depth emerges</li>
+        <li>04 · Stuck? Tap “Reveal” to see the depth map</li>
+      </ol>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "24px 24px" }}>
+        {SCENES.map((scene) => (
+          <MagicEyeCard key={scene.id} scene={scene} />
         ))}
       </div>
+
+      <p style={{ margin: 0, fontSize: 11, color: "#59636e", fontFamily: "system-ui, sans-serif" }}>
+        Rendered client-side with Thimbleby&apos;s SIRDS separation formula{" "}
+        <code>s = (1 − μz)·E / (2 − μz)</code> and a hidden-surface visibility check per scanline.
+      </p>
     </div>
   ),
 };
