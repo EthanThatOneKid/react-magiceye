@@ -1,5 +1,5 @@
-export { MagicEyeCanvas } from "./MagicEyeCanvas";
-export type { MagicEyeCanvasProps } from "./MagicEyeCanvas";
+export { MagicEye } from "./MagicEye";
+export type { MagicEyeProps } from "./MagicEye";
 export {
   SCENES,
   cone,

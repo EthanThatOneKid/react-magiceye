@@ -3,7 +3,7 @@ import type { CanvasHTMLAttributes } from "react";
 import { renderDepthMap, renderStereogram } from "./procedural";
 import type { DepthFn, ScenePalette } from "./procedural";
 
-export interface MagicEyeCanvasProps
+export interface MagicEyeProps
   extends Omit<CanvasHTMLAttributes<HTMLCanvasElement>, "width" | "height"> {
   width: number;
   height: number;
@@ -23,8 +23,8 @@ export interface MagicEyeCanvasProps
   onRendered?: (canvas: HTMLCanvasElement) => void;
 }
 
-export const MagicEyeCanvas = forwardRef<HTMLCanvasElement, MagicEyeCanvasProps>(
-  function MagicEyeCanvas(
+export const MagicEye = forwardRef<HTMLCanvasElement, MagicEyeProps>(
+  function MagicEye(
     {
       width,
       height,

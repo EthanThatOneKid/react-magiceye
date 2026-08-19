@@ -1,12 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { useCallback, useRef, useState } from "react";
-import { MagicEyeCanvas } from "./MagicEyeCanvas";
-import type { MagicEyeCanvasProps } from "./MagicEyeCanvas";
+import { MagicEye } from "./MagicEye";
+import type { MagicEyeProps } from "./MagicEye";
 import { SCENES } from "./procedural";
 import type { SceneDef, ScenePalette } from "./procedural";
 
 type StoryArgs = Pick<
-  MagicEyeCanvasProps,
+  MagicEyeProps,
   "width" | "height" | "eyeSeparation" | "mu" | "seed" | "showDepth" | "palette"
 > & {
   sceneId: string;
@@ -30,7 +30,7 @@ const btnStyle: React.CSSProperties = {
 };
 
 const meta: Meta<StoryArgs> = {
-  title: "MagicEye/MagicEyeCanvas",
+  title: "MagicEye/MagicEye",
   args: {
     sceneId: "sphere",
     width: 640,
@@ -101,7 +101,7 @@ export const Default: Story = {
             Download PNG
           </button>
         </div>
-        <MagicEyeCanvas
+        <MagicEye
           ref={canvasRef}
           width={args.width}
           height={args.height}
@@ -134,7 +134,7 @@ function MagicEyeCard({ scene }: { scene: SceneDef }) {
   return (
     <div style={cardStyle}>
       <div style={{ position: "relative", lineHeight: 0 }}>
-        <MagicEyeCanvas
+        <MagicEye
           width={560}
           height={380}
           depth={scene.depth}

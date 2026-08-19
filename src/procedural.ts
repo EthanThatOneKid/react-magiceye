@@ -1,10 +1,9 @@
 // Procedural Single Image Random Dot Stereogram (SIRDS) generator.
 //
 // This is a faithful port of the generator from the v0 "Autostereogram
-// renderer" project. Unlike the pipeline in ./pipeline.ts, which samples an
-// external pattern image, this module *generates* its own random-dot (or
-// rainbow/candy/mono) pattern and derives depth from mathematical functions,
-// so a scene needs nothing but a canvas to render.
+// renderer" project. It *generates* its own random-dot (or rainbow/candy/mono)
+// pattern and derives depth from mathematical functions, so a scene needs
+// nothing but a canvas to render.
 //
 // The algorithm is the pixel-linking constraint method described in Harold
 // Thimbleby's "Displaying 3D Images: Algorithms for Single Image Random Dot

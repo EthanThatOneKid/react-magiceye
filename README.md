@@ -20,11 +20,11 @@ bun run typecheck
 ## Example
 
 ```tsx
-import { MagicEyeCanvas, sphere } from "react-magiceye";
+import { MagicEye, sphere } from "react-magiceye";
 
 export function Demo() {
   return (
-    <MagicEyeCanvas
+    <MagicEye
       width={640}
       height={480}
       depth={sphere}
@@ -34,7 +34,7 @@ export function Demo() {
 }
 ```
 
-## `MagicEyeCanvas` props
+## `MagicEye` props
 
 | Prop             | Type                       | Default            | Description                                                              |
 | ---------------- | -------------------------- | ------------------ | ------------------------------------------------------------------------ |
